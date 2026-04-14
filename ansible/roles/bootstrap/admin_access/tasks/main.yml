@@ -1,0 +1,64 @@
+---
+- name: Ensure admin user exists
+  ansible.builtin.user:
+    name: "{{ host.admin_user }}"
+    shell: /bin/bash
+    groups: sudo
+    append: true
+    create_home: true
+    password_lock: true
+    state: present
+
+- name: Ensure admin SSH directory exists
+  ansible.builtin.file:
+    path: "/home/{{ host.admin_user }}/.ssh"
+    state: directory
+    owner: "{{ host.admin_user }}"
+    group: "{{ host.admin_user }}"
+    mode: "0700"
+
+- name: Check root authorized keys file
+  ansible.builtin.stat:
+    path: /root/.ssh/authorized_keys
+  register: bootstrap_root_authorized_keys_stat
+
+- name: Check admin authorized keys file
+  ansible.builtin.stat:
+    path: "/home/{{ host.admin_user }}/.ssh/authorized_keys"
+  register: bootstrap_admin_authorized_keys_stat
+
+- name: Seed admin authorized keys from root on first bootstrap
+  ansible.builtin.copy:
+    src: /root/.ssh/authorized_keys
+    dest: "/home/{{ host.admin_user }}/.ssh/authorized_keys"
+    remote_src: true
+    owner: "{{ host.admin_user }}"
+    group: "{{ host.admin_user }}"
+    mode: "0600"
+    force: false
+  when:
+    - bootstrap.copy_root_authorized_keys
+    - bootstrap_root_authorized_keys_stat.stat.exists
+    - not bootstrap_admin_authorized_keys_stat.stat.exists
+
+- name: Re-check admin authorized keys file
+  ansible.builtin.stat:
+    path: "/home/{{ host.admin_user }}/.ssh/authorized_keys"
+  register: bootstrap_admin_authorized_keys_final_stat
+
+- name: Ensure admin user can sudo without password for automation
+  ansible.builtin.template:
+    src: admin-nopasswd-sudoers.j2
+    dest: "/etc/sudoers.d/90-{{ host.admin_user }}"
+    owner: root
+    group: root
+    mode: "0440"
+    validate: /usr/sbin/visudo -cf %s
+
+- name: Assert admin authorized keys exist before SSH hardening
+  ansible.builtin.assert:
+    that:
+      - bootstrap_admin_authorized_keys_final_stat.stat.exists
+    fail_msg: >-
+      Refusing to harden SSH because /home/{{ host.admin_user }}/.ssh/authorized_keys
+      does not exist. Seed the admin key first or allow bootstrap.copy_root_authorized_keys.

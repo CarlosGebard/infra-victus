@@ -1,0 +1,24 @@
+host:
+  admin_user: carlos
+  ubuntu_release: noble
+  private_access_only: true
+
+bootstrap:
+  copy_root_authorized_keys: true
+
+ssh:
+  port: 22
+
+firewall:
+  allowed_tcp_ports:
+    - 22
+
+fail2ban:
+  sshd_maxretry: 5
+  sshd_findtime: 10m
+  sshd_bantime: 1h
+
+system:
+  swap_file_path: /swapfile
+  swap_file_size_mb: 2048
+  install_dev_packages: true

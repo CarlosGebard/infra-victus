@@ -1,0 +1,28 @@
+---
+- name: Ensure filesystem base directories exist
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "{{ item.mode }}"
+  loop: "{{ filesystem_base_dirs }}"
+
+- name: Ensure runtime directories exist
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "{{ item.mode }}"
+  loop: "{{ filesystem_runtime_dirs }}"
+
+- name: Ensure service data directories have container-compatible ownership
+  ansible.builtin.file:
+    path: "{{ item.value.path }}"
+    state: directory
+    owner: "{{ item.value.uid }}"
+    group: "{{ item.value.gid }}"
+    mode: "{{ item.value.mode }}"
+    recurse: true
+  loop: "{{ filesystem_service_ownership | dict2items }}"

@@ -1,0 +1,57 @@
+---
+- name: Ensure deploy stack definition is present
+  ansible.builtin.assert:
+    that:
+      - deploy_stack is defined
+      - deploy_stack.name is defined
+      - deploy_stack.project_dir is defined
+      - deploy_stack.compose_path is defined
+      - deploy_stack.env_path is defined
+    fail_msg: "deploy_stack must be defined before including deploy/shared."
+
+- name: Ensure deploy directories exist
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "{{ item.mode }}"
+  loop: "{{ deploy_stack.directories | default([]) }}"
+
+- name: Stage deploy secret files from controller
+  ansible.builtin.copy:
+    src: "{{ item.source_file }}"
+    dest: "{{ item.dest }}"
+    owner: root
+    group: root
+    mode: "{{ item.mode | default('0600') }}"
+  loop: "{{ deploy_stack.staged_secret_files | default([]) }}"
+  when: item.source_file | default('') | length > 0
+
+- name: Check whether required deploy files exist
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop: "{{ deploy_stack.required_files | default([]) }}"
+  register: deploy_required_files_stat
+
+- name: Stop deployment when required deploy files are missing
+  ansible.builtin.assert:
+    that:
+      - deploy_required_files_stat.results | rejectattr('stat.exists') | list | length == 0
+    fail_msg: >-
+      Missing required deploy files for {{ deploy_stack.name }}:
+      {{
+        deploy_required_files_stat.results
+        | rejectattr('stat.exists')
+        | map(attribute='item')
+        | join(', ')
+      }}
+
+- name: Copy stack configuration files
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: root
+    group: root
+    mode: "{{ item.mode | default('0644') }}"
+  loop: "{{ deploy_stack.config_files | default([]) }}"

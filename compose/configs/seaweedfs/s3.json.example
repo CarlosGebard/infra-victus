@@ -1,0 +1,19 @@
+{
+  "identities": [
+    {
+      "name": "infra-local",
+      "credentials": [
+        {
+          "accessKey": "change-me",
+          "secretKey": "change-me"
+        }
+      ],
+      "actions": [
+        "Admin",
+        "Read",
+        "Write",
+        "List"
+      ]
+    }
+  ]
+}

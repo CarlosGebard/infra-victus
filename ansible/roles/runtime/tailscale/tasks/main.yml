@@ -1,0 +1,154 @@
+---
+- name: Resolve Tailscale Ubuntu release codename
+  ansible.builtin.set_fact:
+    tailscale_ubuntu_release: "{{ ansible_distribution_release | default(host.ubuntu_release, true) }}"
+  when: tailscale.enabled
+
+- name: Require Ubuntu hosts for the Tailscale APT role
+  ansible.builtin.assert:
+    that:
+      - ansible_distribution == "Ubuntu"
+    fail_msg: >-
+      The Tailscale role currently supports Ubuntu only. Detected
+      {{ ansible_distribution }} {{ ansible_distribution_version | default('') }}.
+  when: tailscale.enabled
+
+- name: Ensure Tailscale keyring directory exists
+  ansible.builtin.file:
+    path: /usr/share/keyrings
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when: tailscale.enabled
+
+- name: Install Tailscale archive key
+  ansible.builtin.get_url:
+    url: "https://pkgs.tailscale.com/{{ tailscale.track }}/ubuntu/{{ tailscale_ubuntu_release }}.noarmor.gpg"
+    dest: /usr/share/keyrings/tailscale-archive-keyring.gpg
+    owner: root
+    group: root
+    mode: "0644"
+  when: tailscale.enabled
+
+- name: Install Tailscale repository definition
+  ansible.builtin.get_url:
+    url: "https://pkgs.tailscale.com/{{ tailscale.track }}/ubuntu/{{ tailscale_ubuntu_release }}.tailscale-keyring.list"
+    dest: /etc/apt/sources.list.d/tailscale.list
+    owner: root
+    group: root
+    mode: "0644"
+  when: tailscale.enabled
+
+- name: Refresh APT cache after adding the Tailscale repository
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 0
+  changed_when: false
+  when: tailscale.enabled
+
+- name: Inspect Tailscale package availability
+  ansible.builtin.command:
+    cmd: apt-cache policy tailscale
+  register: tailscale_package_policy
+  changed_when: false
+  when: tailscale.enabled
+
+- name: Fail early when the Tailscale package is not visible in APT
+  ansible.builtin.assert:
+    that:
+      - "'Candidate: (none)' not in tailscale_package_policy.stdout"
+    fail_msg: >-
+      Tailscale package is not available from APT after configuring the repo
+      for Ubuntu {{ tailscale_ubuntu_release }}. Review the host release,
+      /etc/apt/sources.list.d/tailscale.list, and apt-cache policy tailscale.
+  when: tailscale.enabled
+
+- name: Install Tailscale package
+  ansible.builtin.apt:
+    name: tailscale
+    state: present
+    update_cache: false
+    cache_valid_time: 3600
+  when: tailscale.enabled
+
+- name: Enable and start tailscaled
+  ansible.builtin.service:
+    name: tailscaled
+    state: started
+    enabled: true
+  when: tailscale.enabled
+
+- name: Read current Tailscale state
+  ansible.builtin.command: tailscale status --json
+  register: tailscale_status_raw
+  changed_when: false
+  failed_when: false
+  when: tailscale.enabled
+
+- name: Parse current Tailscale state
+  ansible.builtin.set_fact:
+    tailscale_status: "{{ tailscale_status_raw.stdout | default('{}') | from_json }}"
+  when:
+    - tailscale.enabled
+    - tailscale_status_raw.rc == 0
+    - tailscale_status_raw.stdout | default('') | length > 0
+
+- name: Build desired Tailscale flags
+  ansible.builtin.set_fact:
+    tailscale_desired_flags: >-
+      {{
+        (
+          (['--advertise-tags=' ~ (tailscale.advertise_tags | join(','))] if tailscale.advertise_tags | length > 0 else [])
+          + (['--ssh', '--accept-risk=lose-ssh'] if tailscale.enable_ssh else [])
+          + (['--hostname=' ~ tailscale.hostname] if tailscale.hostname | length > 0 else [])
+          + ([tailscale.args_extra] if tailscale.args_extra | trim | length > 0 else [])
+        ) | join(' ')
+      }}
+  when: tailscale.enabled
+
+- name: Ensure /etc/tailscale exists
+  ansible.builtin.file:
+    path: /etc/tailscale
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when: tailscale.enabled
+
+- name: Persist desired non-secret Tailscale flags
+  ansible.builtin.copy:
+    dest: /etc/tailscale/managed-up.flags
+    content: "{{ tailscale_desired_flags }}\n"
+    owner: root
+    group: root
+    mode: "0600"
+  register: tailscale_managed_flags
+  when: tailscale.enabled
+
+- name: Refuse first-time Tailscale bootstrap without auth key
+  ansible.builtin.assert:
+    that:
+      - tailscale.auth_key | length > 0
+    fail_msg: >-
+      tailscale.auth_key is required for first-time bootstrap when tailscale is
+      enabled and the node is not yet connected.
+  when:
+    - tailscale.enabled
+    - (tailscale_status.BackendState | default('Stopped')) != 'Running'
+
+- name: Join or update Tailscale node
+  ansible.builtin.shell: >-
+    tailscale up --auth-key="$TS_AUTH_KEY"
+    {{ tailscale_desired_flags }}
+  args:
+    executable: /bin/bash
+  environment:
+    TS_AUTH_KEY: "{{ tailscale.auth_key }}"
+  register: tailscale_up
+  changed_when: true
+  no_log: true
+  when:
+    - tailscale.enabled
+    - tailscale.auth_key | length > 0
+    - (tailscale_status.BackendState | default('Stopped')) != 'Running' or tailscale_managed_flags.changed

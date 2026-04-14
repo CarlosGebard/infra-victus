@@ -1,0 +1,7 @@
+compose/.tmp/
+compose/projects/*/.env
+.codex
+AGENTS.md
+TASKS.MD
+TASKS.md
+tasks.md

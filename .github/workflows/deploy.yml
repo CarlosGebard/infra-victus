@@ -1,0 +1,210 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      stack:
+        description: Stack to deploy
+        required: true
+        default: core
+        type: choice
+        options:
+          - core
+          - personal
+          - observability
+      git_ref:
+        description: Git ref to deploy
+        required: true
+        default: main
+      check_mode:
+        description: Run Ansible in check mode only
+        required: true
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy production stack from Infisical runtime secrets
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.git_ref }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Pull deploy secrets from Infisical via OIDC
+        uses: Infisical/secrets-action@v1.0.10
+        with:
+          method: "oidc"
+          identity-id: "0a100e5d-1422-437e-b447-e032f32403fa"
+          project-slug: "victus-main-server-qy-2z"
+          env-slug: "prod"
+
+      - name: Install Ansible
+        run: python -m pip install --upgrade pip ansible-core
+
+      - name: Select deploy targets
+        run: |
+          set -euo pipefail
+
+          case "${{ inputs.stack }}" in
+            core)
+              echo "DEPLOY_PLAYBOOK=playbooks/deploy.yml" >> "$GITHUB_ENV"
+              echo "DEPLOY_SYNTAX_CHECK=tests/ansible/deploy-syntax-check.sh" >> "$GITHUB_ENV"
+              echo "DEPLOY_INVENTORY_FILE=/tmp/deploy-core-hosts.yml" >> "$GITHUB_ENV"
+              echo "DEPLOY_RUNTIME_ENV_FILE=/tmp/core-runtime.env" >> "$GITHUB_ENV"
+              ;;
+            personal)
+              echo "DEPLOY_PLAYBOOK=playbooks/deploy-personal.yml" >> "$GITHUB_ENV"
+              echo "DEPLOY_SYNTAX_CHECK=tests/ansible/deploy-personal-syntax-check.sh" >> "$GITHUB_ENV"
+              echo "DEPLOY_INVENTORY_FILE=/tmp/deploy-personal-hosts.yml" >> "$GITHUB_ENV"
+              echo "DEPLOY_RUNTIME_ENV_FILE=/tmp/personal-runtime.env" >> "$GITHUB_ENV"
+              ;;
+            observability)
+              echo "DEPLOY_PLAYBOOK=playbooks/deploy-observability.yml" >> "$GITHUB_ENV"
+              echo "DEPLOY_SYNTAX_CHECK=tests/ansible/deploy-observability-syntax-check.sh" >> "$GITHUB_ENV"
+              echo "DEPLOY_INVENTORY_FILE=/tmp/deploy-observability-hosts.yml" >> "$GITHUB_ENV"
+              echo "DEPLOY_RUNTIME_ENV_FILE=/tmp/observability-runtime.env" >> "$GITHUB_ENV"
+              ;;
+            *)
+              echo "Unsupported stack: ${{ inputs.stack }}" >&2
+              exit 1
+              ;;
+          esac
+
+      - name: Validate selected deploy playbook syntax
+        run: "$DEPLOY_SYNTAX_CHECK"
+
+      - name: Assert required deploy secrets are present
+        env:
+          BOOTSTRAP_HOST: ${{ env.BOOTSTRAP_HOST }}
+          BOOTSTRAP_SSH_PRIVATE_KEY: ${{ env.BOOTSTRAP_SSH_PRIVATE_KEY }}
+          BOOTSTRAP_SSH_USER: ${{ env.BOOTSTRAP_SSH_USER }}
+          CORE_RUNTIME_ENV: ${{ env.CORE_RUNTIME_ENV }}
+          CORE_RUNTIME_SEAWEED_S3_JSON: ${{ env.CORE_RUNTIME_SEAWEED_S3_JSON }}
+          PERSONAL_RUNTIME_ENV: ${{ env.PERSONAL_RUNTIME_ENV }}
+          OBSERVABILITY_RUNTIME_ENV: ${{ env.OBSERVABILITY_RUNTIME_ENV }}
+        run: |
+          set -euo pipefail
+
+          [[ -n "${BOOTSTRAP_HOST}" ]] || { echo "Missing BOOTSTRAP_HOST"; exit 1; }
+          [[ -n "${BOOTSTRAP_SSH_USER}" ]] || { echo "Missing BOOTSTRAP_SSH_USER"; exit 1; }
+          [[ -n "${BOOTSTRAP_SSH_PRIVATE_KEY}" ]] || { echo "Missing BOOTSTRAP_SSH_PRIVATE_KEY"; exit 1; }
+
+          case "${{ inputs.stack }}" in
+            core)
+              [[ -n "${CORE_RUNTIME_ENV}" ]] || { echo "Missing CORE_RUNTIME_ENV"; exit 1; }
+              [[ -n "${CORE_RUNTIME_SEAWEED_S3_JSON}" ]] || { echo "Missing CORE_RUNTIME_SEAWEED_S3_JSON"; exit 1; }
+              ;;
+            personal)
+              [[ -n "${PERSONAL_RUNTIME_ENV}" ]] || { echo "Missing PERSONAL_RUNTIME_ENV"; exit 1; }
+              ;;
+            observability)
+              [[ -n "${OBSERVABILITY_RUNTIME_ENV}" ]] || { echo "Missing OBSERVABILITY_RUNTIME_ENV"; exit 1; }
+              ;;
+          esac
+
+      - name: Prepare SSH material
+        env:
+          BOOTSTRAP_HOST: ${{ env.BOOTSTRAP_HOST }}
+          BOOTSTRAP_KNOWN_HOSTS: ${{ env.BOOTSTRAP_KNOWN_HOSTS }}
+          BOOTSTRAP_SSH_PORT: ${{ env.BOOTSTRAP_SSH_PORT }}
+          BOOTSTRAP_SSH_PRIVATE_KEY: ${{ env.BOOTSTRAP_SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p "$HOME/.ssh"
+          chmod 700 "$HOME/.ssh"
+
+          printf '%s\n' "$BOOTSTRAP_SSH_PRIVATE_KEY" > "$HOME/.ssh/deploy_key"
+          chmod 600 "$HOME/.ssh/deploy_key"
+
+          if [[ -n "${BOOTSTRAP_KNOWN_HOSTS:-}" ]]; then
+            printf '%s\n' "$BOOTSTRAP_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          else
+            ssh-keyscan -p "${BOOTSTRAP_SSH_PORT:-22}" -H "$BOOTSTRAP_HOST" >> "$HOME/.ssh/known_hosts"
+          fi
+
+          chmod 644 "$HOME/.ssh/known_hosts"
+
+      - name: Materialize runtime secret files
+        env:
+          CORE_RUNTIME_ENV: ${{ env.CORE_RUNTIME_ENV }}
+          CORE_RUNTIME_SEAWEED_S3_JSON: ${{ env.CORE_RUNTIME_SEAWEED_S3_JSON }}
+          PERSONAL_RUNTIME_ENV: ${{ env.PERSONAL_RUNTIME_ENV }}
+          OBSERVABILITY_RUNTIME_ENV: ${{ env.OBSERVABILITY_RUNTIME_ENV }}
+        run: |
+          set -euo pipefail
+
+          case "${{ inputs.stack }}" in
+            core)
+              printf '%s\n' "$CORE_RUNTIME_ENV" > "$DEPLOY_RUNTIME_ENV_FILE"
+              printf '%s\n' "$CORE_RUNTIME_SEAWEED_S3_JSON" > /tmp/seaweed-s3.json
+              chmod 600 "$DEPLOY_RUNTIME_ENV_FILE" /tmp/seaweed-s3.json
+              ;;
+            personal)
+              printf '%s\n' "$PERSONAL_RUNTIME_ENV" > "$DEPLOY_RUNTIME_ENV_FILE"
+              chmod 600 "$DEPLOY_RUNTIME_ENV_FILE"
+              ;;
+            observability)
+              printf '%s\n' "$OBSERVABILITY_RUNTIME_ENV" > "$DEPLOY_RUNTIME_ENV_FILE"
+              chmod 600 "$DEPLOY_RUNTIME_ENV_FILE"
+              ;;
+          esac
+
+      - name: Build temporary inventory
+        env:
+          BOOTSTRAP_HOST: ${{ env.BOOTSTRAP_HOST }}
+          BOOTSTRAP_SSH_PORT: ${{ env.BOOTSTRAP_SSH_PORT }}
+          BOOTSTRAP_SSH_USER: ${{ env.BOOTSTRAP_SSH_USER }}
+        run: |
+          set -euo pipefail
+
+          cat > "$DEPLOY_INVENTORY_FILE" <<EOF
+          all:
+            hosts:
+              deploy_target:
+                ansible_host: ${BOOTSTRAP_HOST}
+                ansible_user: ${BOOTSTRAP_SSH_USER}
+                ansible_port: ${BOOTSTRAP_SSH_PORT:-22}
+                ansible_ssh_private_key_file: ${HOME}/.ssh/deploy_key
+          EOF
+
+      - name: Run selected deploy playbook
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: "true"
+          CORE_RUNTIME_ENV_SOURCE_FILE: ${{ inputs.stack == 'core' && '/tmp/core-runtime.env' || '' }}
+          CORE_RUNTIME_SEAWEED_S3_SOURCE_FILE: ${{ inputs.stack == 'core' && '/tmp/seaweed-s3.json' || '' }}
+          PERSONAL_RUNTIME_ENV_SOURCE_FILE: ${{ inputs.stack == 'personal' && '/tmp/personal-runtime.env' || '' }}
+          OBSERVABILITY_RUNTIME_ENV_SOURCE_FILE: ${{ inputs.stack == 'observability' && '/tmp/observability-runtime.env' || '' }}
+        run: |
+          set -euo pipefail
+
+          cd ansible
+
+          ansible-playbook \
+            -i "$DEPLOY_INVENTORY_FILE" \
+            "$DEPLOY_PLAYBOOK" \
+            $([[ "${{ inputs.check_mode }}" == "true" ]] && printf '%s' --check)

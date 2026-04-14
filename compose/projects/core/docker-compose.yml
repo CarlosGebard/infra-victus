@@ -1,0 +1,55 @@
+services:
+  nginx:
+    image: nginx:1.28.3-alpine
+    container_name: nginx
+    restart: unless-stopped
+    depends_on:
+      seaweedfs:
+        condition: service_started
+    ports:
+      - "${NGINX_BIND_IP:-127.0.0.1}:${NGINX_HTTP_PORT:-8080}:80"
+    volumes:
+      - /srv/apps/core/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - /srv/apps/core/nginx/conf.d:/etc/nginx/conf.d:ro
+      - /srv/logs/nginx:/var/log/nginx
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/healthz || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - edge
+      - core_backend
+      - shared_backend
+
+  seaweedfs:
+    image: chrislusf/seaweedfs:4.05
+    container_name: seaweedfs
+    restart: unless-stopped
+    command:
+      - server
+      - -dir=/data
+      - -s3
+      - -s3.port=8333
+      - -s3.config=/run/secrets/seaweed-s3.json
+    volumes:
+      - /srv/data/seaweed/data:/data
+      - /srv/secrets/runtime/seaweed-s3.json:/run/secrets/seaweed-s3.json:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:9333/cluster/status || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks:
+      - core_backend
+
+networks:
+  edge:
+    driver: bridge
+  core_backend:
+    driver: bridge
+  shared_backend:
+    name: infra_shared_backend
+    driver: bridge

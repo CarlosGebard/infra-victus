@@ -1,0 +1,66 @@
+srv_root: /srv
+srv_apps_root: "{{ srv_root }}/apps"
+srv_data_root: "{{ srv_root }}/data"
+srv_logs_root: "{{ srv_root }}/logs"
+srv_secrets_root: "{{ srv_root }}/secrets"
+srv_backups_root: "{{ srv_root }}/backups"
+
+filesystem_base_dirs:
+  - { path: "{{ srv_root }}", mode: "0755" }
+  - { path: "{{ srv_apps_root }}", mode: "0755" }
+  - { path: "{{ srv_data_root }}", mode: "0750" }
+  - { path: "{{ srv_logs_root }}", mode: "0750" }
+  - { path: "{{ srv_secrets_root }}", mode: "0750" }
+  - { path: "{{ srv_secrets_root }}/runtime", mode: "0750" }
+  - { path: "{{ srv_backups_root }}", mode: "0750" }
+
+filesystem_runtime_dirs:
+  - { path: "{{ srv_apps_root }}/core", mode: "0755" }
+  - { path: "{{ srv_apps_root }}/core/nginx", mode: "0755" }
+  - { path: "{{ srv_apps_root }}/core/nginx/conf.d", mode: "0755" }
+  - { path: "{{ srv_apps_root }}/personal", mode: "0755" }
+  - { path: "{{ srv_apps_root }}/personal/couchdb", mode: "0755" }
+  - { path: "{{ srv_apps_root }}/personal/couchdb/local.d", mode: "0755" }
+  - { path: "{{ srv_apps_root }}/observability", mode: "0755" }
+  - { path: "{{ srv_apps_root }}/observability/loki", mode: "0755" }
+  - { path: "{{ srv_apps_root }}/observability/prometheus", mode: "0755" }
+  - { path: "{{ srv_apps_root }}/observability/grafana", mode: "0755" }
+  - { path: "{{ srv_apps_root }}/observability/grafana/provisioning", mode: "0755" }
+  - { path: "{{ srv_apps_root }}/observability/grafana/provisioning/datasources", mode: "0755" }
+  - { path: "{{ srv_apps_root }}/observability/grafana/provisioning/dashboards", mode: "0755" }
+  - { path: "{{ srv_data_root }}/couchdb", mode: "0750" }
+  - { path: "{{ srv_data_root }}/couchdb/data", mode: "0750" }
+  - { path: "{{ srv_data_root }}/seaweed", mode: "0750" }
+  - { path: "{{ srv_data_root }}/seaweed/data", mode: "0750" }
+  - { path: "{{ srv_data_root }}/observability", mode: "0750" }
+  - { path: "{{ srv_data_root }}/observability/loki", mode: "0750" }
+  - { path: "{{ srv_data_root }}/observability/prometheus", mode: "0750" }
+  - { path: "{{ srv_data_root }}/observability/grafana", mode: "0750" }
+  - { path: "{{ srv_logs_root }}/nginx", mode: "0750" }
+
+filesystem_service_ownership:
+  couchdb:
+    path: "{{ srv_data_root }}/couchdb/data"
+    uid: 5984
+    gid: 5984
+    mode: "0750"
+  seaweed:
+    path: "{{ srv_data_root }}/seaweed/data"
+    uid: 1000
+    gid: 1000
+    mode: "0750"
+  loki:
+    path: "{{ srv_data_root }}/observability/loki"
+    uid: 10001
+    gid: 10001
+    mode: "0750"
+  prometheus:
+    path: "{{ srv_data_root }}/observability/prometheus"
+    uid: 65534
+    gid: 65534
+    mode: "0750"
+  grafana:
+    path: "{{ srv_data_root }}/observability/grafana"
+    uid: 472
+    gid: 472
+    mode: "0750"

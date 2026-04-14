@@ -1,0 +1,34 @@
+---
+- name: Check whether swap file already exists
+  ansible.builtin.stat:
+    path: "{{ system.swap_file_path }}"
+  register: bootstrap_swap_file_stat
+
+- name: Allocate swap file
+  ansible.builtin.command:
+    cmd: "fallocate -l {{ system.swap_file_size_mb }}M {{ system.swap_file_path }}"
+  when: not bootstrap_swap_file_stat.stat.exists
+
+- name: Set swap file permissions
+  ansible.builtin.file:
+    path: "{{ system.swap_file_path }}"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Format swap file
+  ansible.builtin.command:
+    cmd: "mkswap {{ system.swap_file_path }}"
+  when: not bootstrap_swap_file_stat.stat.exists
+
+- name: Enable swap file
+  ansible.builtin.command:
+    cmd: "swapon {{ system.swap_file_path }}"
+  when: not bootstrap_swap_file_stat.stat.exists
+
+- name: Persist swap entry in fstab
+  ansible.builtin.lineinfile:
+    path: /etc/fstab
+    regexp: "^{{ system.swap_file_path | regex_escape() }}\\s+none\\s+swap\\s+sw\\s+0\\s+0$"
+    line: "{{ system.swap_file_path }} none swap sw 0 0"
+    state: present

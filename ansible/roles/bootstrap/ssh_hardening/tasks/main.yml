@@ -1,0 +1,15 @@
+---
+- name: Install SSH hardening drop-in
+  ansible.builtin.copy:
+    src: sshd-hardening.conf
+    dest: /etc/ssh/sshd_config.d/99-codex-hardening.conf
+    owner: root
+    group: root
+    mode: "0644"
+  register: bootstrap_ssh_hardening_dropin
+
+- name: Restart ssh when hardening changed
+  ansible.builtin.service:
+    name: ssh
+    state: restarted
+  when: bootstrap_ssh_hardening_dropin.changed

@@ -1,0 +1,7 @@
+[sshd]
+enabled = true
+port = {{ ssh.port }}
+backend = systemd
+maxretry = {{ fail2ban.sshd_maxretry }}
+findtime = {{ fail2ban.sshd_findtime }}
+bantime = {{ fail2ban.sshd_bantime }}

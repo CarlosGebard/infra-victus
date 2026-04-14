@@ -1,0 +1,33 @@
+packages:
+  base:
+    - acl
+    - apt-transport-https
+    - ca-certificates
+    - cloud-guest-utils
+    - cloud-init
+    - curl
+    - gnupg
+    - lsb-release
+    - openssh-server
+    - python3
+    - qemu-guest-agent
+    - rsync
+    - software-properties-common
+    - sudo
+    - unattended-upgrades
+    - wget
+  security:
+    - fail2ban
+    - ufw
+  ops:
+    - htop
+    - jq
+    - lsof
+    - mtr-tiny
+    - netcat-openbsd
+    - strace
+    - tcpdump
+  dev:
+    - git
+    - neovim
+    - tmux
