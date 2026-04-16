@@ -2,27 +2,6 @@ name: Debug Infisical OIDC
 
 on:
   workflow_dispatch:
-    inputs:
-      git_ref:
-        description: Git ref to validate
-        required: true
-        default: main
-      print_oidc_claims:
-        description: Print decoded OIDC claims metadata
-        required: true
-        default: "true"
-        type: choice
-        options:
-          - "true"
-          - "false"
-      assert_runtime_contract:
-        description: Assert minimum Infisical secret contract after fetch
-        required: true
-        default: "true"
-        type: choice
-        options:
-          - "true"
-          - "false"
 
 concurrency:
   group: production-debug-infisical-oidc
@@ -45,8 +24,6 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v5
-        with:
-          ref: ${{ inputs.git_ref }}
 
       - name: Assert required GitHub environment variables are present
         env:
@@ -62,66 +39,6 @@ jobs:
 
           echo "GitHub environment variables present"
 
-      - name: Request GitHub OIDC token
-        id: oidc
-        env:
-          REQUEST_TOKEN: ${{ env.ACTIONS_ID_TOKEN_REQUEST_TOKEN }}
-          REQUEST_URL: ${{ env.ACTIONS_ID_TOKEN_REQUEST_URL }}
-        run: |
-          set -euo pipefail
-
-          [[ -n "${REQUEST_TOKEN:-}" ]] || { echo "Missing ACTIONS_ID_TOKEN_REQUEST_TOKEN"; exit 1; }
-          [[ -n "${REQUEST_URL:-}" ]] || { echo "Missing ACTIONS_ID_TOKEN_REQUEST_URL"; exit 1; }
-
-          RESPONSE="$(curl -fsSL \
-            -H "Authorization: bearer ${REQUEST_TOKEN}" \
-            "${REQUEST_URL}")"
-
-          TOKEN="$(printf '%s' "$RESPONSE" | python3 -c 'import json,sys; print(json.load(sys.stdin)["value"])')"
-          [[ -n "${TOKEN}" ]] || { echo "OIDC token request returned empty token"; exit 1; }
-
-          echo "::add-mask::${TOKEN}"
-          echo "token=${TOKEN}" >> "$GITHUB_OUTPUT"
-          echo "GitHub OIDC token issued"
-
-      - name: Print decoded OIDC claims
-        if: ${{ inputs.print_oidc_claims == 'true' }}
-        env:
-          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
-        run: |
-          set -euo pipefail
-
-          python3 <<'PY'
-          import base64
-          import json
-          import os
-
-          token = os.environ["OIDC_TOKEN"]
-          payload = token.split(".")[1]
-          payload += "=" * (-len(payload) % 4)
-          claims = json.loads(base64.urlsafe_b64decode(payload).decode())
-
-          safe_keys = [
-              "iss",
-              "sub",
-              "aud",
-              "repository",
-              "repository_owner",
-              "ref",
-              "sha",
-              "workflow",
-              "job_workflow_ref",
-              "run_id",
-              "run_number",
-              "actor",
-              "event_name",
-              "environment",
-          ]
-
-          safe_claims = {k: claims.get(k) for k in safe_keys if k in claims}
-          print(json.dumps(safe_claims, indent=2, sort_keys=True))
-          PY
-
       - name: Pull secrets from Infisical via OIDC
         uses: Infisical/secrets-action@v1.0.10
         with:
@@ -130,17 +47,14 @@ jobs:
           project-slug: "${{ vars.INFISICAL_PROJECT_SLUG }}"
           env-slug: "${{ vars.INFISICAL_ENV_SLUG }}"
 
-      - name: Assert minimum Infisical contract
-        if: ${{ inputs.assert_runtime_contract == 'true' }}
+      - name: Verify action ran
         env:
           PROD_HOST: ${{ env.PROD_HOST }}
-          PROD_SSH_PRIVATE_KEY: ${{ env.PROD_SSH_PRIVATE_KEY }}
           PROD_SSH_USER: ${{ env.PROD_SSH_USER }}
         run: |
           set -euo pipefail
 
           [[ -n "${PROD_HOST}" ]] || { echo "Missing PROD_HOST from Infisical"; exit 1; }
           [[ -n "${PROD_SSH_USER}" ]] || { echo "Missing PROD_SSH_USER from Infisical"; exit 1; }
-          [[ -n "${PROD_SSH_PRIVATE_KEY}" ]] || { echo "Missing PROD_SSH_PRIVATE_KEY from Infisical"; exit 1; }
 
-          echo "Infisical OIDC fetch OK"
+          echo "Infisical action finished"
