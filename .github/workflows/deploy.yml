@@ -1,10 +1,10 @@
-name: Deploy
+name: Deploy Single Stack
 
 on:
   workflow_dispatch:
     inputs:
       stack:
-        description: Stack to deploy
+        description: Stack to deploy (use deploy-all.yml for full rollout)
         required: true
         default: core
         type: choice

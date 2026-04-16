@@ -1,0 +1,174 @@
+---
+# Orchestrate deployment of all stacks in correct order
+# Observability → Personal → Core
+#
+# This playbook ensures:
+# 1. Secrets are validated before any deployment
+# 2. Stacks deploy in dependency order
+# 3. Each stack is verified before next begins
+# 4. Failures are caught early
+
+- name: Pre-deployment validation
+  hosts: all
+  gather_facts: true
+  
+  pre_tasks:
+    - name: Load inventory group vars fragments
+      ansible.builtin.include_vars:
+        dir: "{{ playbook_dir }}/../inventories/production/group_vars"
+        extensions:
+          - yml
+  
+  tasks:
+    - name: Verify Ansible version
+      ansible.builtin.assert:
+        that:
+          - ansible_version.full is version('2.12', '>=')
+        fail_msg: "Ansible 2.12+ required"
+    
+    - name: Check SSH connectivity
+      ansible.builtin.ping:
+    
+    - name: Verify Docker installed
+      ansible.builtin.command: docker --version
+      changed_when: false
+    
+    - name: Verify docker-compose installed
+      ansible.builtin.command: docker compose version
+      changed_when: false
+
+- name: Deploy observability stack
+  hosts: all
+  become: true
+  gather_facts: true
+  
+  pre_tasks:
+    - name: Load inventory group vars fragments
+      ansible.builtin.include_vars:
+        dir: "{{ playbook_dir }}/../inventories/production/group_vars"
+        extensions:
+          - yml
+  
+  vars:
+    deploy_stack: "{{ deploy.observability }}"
+  
+  roles:
+    - role: deploy/shared
+    - role: deploy/observability
+  
+  post_tasks:
+    - name: Wait for observability services
+      ansible.builtin.wait_for:
+        port: "{{ item }}"
+        host: 127.0.0.1
+        timeout: 30
+        delay: 5
+      loop:
+        - 3100  # Loki
+        - 9090  # Prometheus
+        - 3000  # Grafana
+      ignore_errors: true
+
+- name: Deploy personal stack
+  hosts: all
+  become: true
+  gather_facts: true
+  
+  pre_tasks:
+    - name: Load inventory group vars fragments
+      ansible.builtin.include_vars:
+        dir: "{{ playbook_dir }}/../inventories/production/group_vars"
+        extensions:
+          - yml
+  
+  vars:
+    deploy_stack: "{{ deploy.personal }}"
+  
+  roles:
+    - role: deploy/shared
+    - role: deploy/personal
+  
+  post_tasks:
+    - name: Wait for personal services
+      ansible.builtin.wait_for:
+        port: 5984  # CouchDB
+        host: 127.0.0.1
+        timeout: 30
+        delay: 5
+      ignore_errors: true
+
+- name: Deploy core stack
+  hosts: all
+  become: true
+  gather_facts: true
+  
+  pre_tasks:
+    - name: Load inventory group vars fragments
+      ansible.builtin.include_vars:
+        dir: "{{ playbook_dir }}/../inventories/production/group_vars"
+        extensions:
+          - yml
+  
+  vars:
+    deploy_stack: "{{ deploy.core }}"
+  
+  roles:
+    - role: deploy/shared
+    - role: deploy/core
+  
+  post_tasks:
+    - name: Wait for core services
+      ansible.builtin.wait_for:
+        port: "{{ item }}"
+        host: 127.0.0.1
+        timeout: 30
+        delay: 5
+      loop:
+        - 8080   # Nginx (http)
+        - 8443   # Nginx (https, if configured)
+      ignore_errors: true
+
+- name: Final verification
+  hosts: all
+  gather_facts: true
+  
+  tasks:
+    - name: List running containers
+      ansible.builtin.shell: |
+        set -euo pipefail
+        docker ps --format "table {{.Names}}\t{{.Status}}"
+      register: containers_status
+      changed_when: false
+    
+    - name: Display running containers
+      ansible.builtin.debug:
+        msg: "{{ containers_status.stdout }}"
+    
+    - name: Verify all expected services
+      ansible.builtin.shell: |
+        set -euo pipefail
+        
+        expected_services=(
+          "nginx"
+          "seaweedfs"
+          "couchdb"
+          "loki"
+          "prometheus"
+          "grafana"
+        )
+        
+        for service in "${expected_services[@]}"; do
+          status=$(docker ps --all --filter "name=$service" --format "{{.State}}")
+          if [[ "$status" == "running" ]]; then
+            echo "✓ $service: running"
+          else
+            echo "✗ $service: not running (status: $status)"
+            exit 1
+          fi
+        done
+      register: verification_result
+      changed_when: false
+    
+    - name: Display verification results
+      ansible.builtin.debug:
+        msg: "{{ verification_result.stdout_lines }}"

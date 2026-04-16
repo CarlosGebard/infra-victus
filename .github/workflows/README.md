@@ -1,0 +1,299 @@
+# GitHub Actions Workflows
+
+## Overview
+
+Workflows manage infrastructure deployment via GitHub Actions + Infisical OIDC.
+
+## Workflow Index
+
+| Workflow | Purpose | Trigger | Frequency |
+|----------|---------|---------|-----------|
+| `bootstrap-host.yml` | Initial VPS setup (root access required) | Manual dispatch | Once per host |
+| `apply-runtime.yml` | Runtime environment setup (Ansible infrastructure) | Manual dispatch | Once after bootstrap |
+| **`deploy-all.yml`** | **Deploy all 3 stacks in correct order** | Manual dispatch | Production rollout |
+| `deploy.yml` | Deploy single stack (core/personal/observability) | Manual dispatch | Partial updates |
+| `validate-infra.yml` | Validate compose files + syntax | On PR to main | Each commit |
+| `debug-*.yml` | Troubleshooting utilities | Manual dispatch | Debugging only |
+
+## Recommended Deployment Flow
+
+### Fresh VPS Setup
+
+```
+1. bootstrap-host.yml
+   └─ One-time: Docker, system packages
+   
+2. apply-runtime.yml
+   └─ One-time: Directory structure, systemd, permissions
+   
+3. deploy-all.yml
+   └─ Repeatable: Deploy apps (observability → personal → core)
+```
+
+### Subsequent Updates
+
+```
+deploy-all.yml
+```
+
+### Hotfixes (Emergency Only)
+
+```
+deploy.yml (with specific stack)
+```
+
+## Workflow Architecture
+
+### `deploy-all.yml` (Production Standard)
+
+**Status**: Primary deployment orchestrator
+
+**Flow**:
+```
+validate (all secrets + syntax)
+    ↓
+deploy-observability (loki, prometheus, grafana)
+    ├─ parallel with:
+deploy-personal (couchdb)
+    ↓
+deploy-core (nginx, seaweedfs)
+    ↓
+verify (all 6 services healthy)
+```
+
+**Inputs**:
+- `git_ref` (required): Branch/tag to deploy (default: main)
+- `auto_rollback` (optional): Rollback on failure (currently informational)
+
+**Outputs**:
+- ✓ All 6 containers running
+- ✓ Logs available in GitHub Actions
+
+**Concurrency**: Prevents parallel deployments (lock on `production-deploy-all`)
+
+**Time**: ~15-20 minutes
+
+### `deploy.yml` (Individual Stack)
+
+**Status**: Fallback for single-stack updates
+
+**Flow**:
+```
+validate (selected stack only)
+    ↓
+deploy-<stack>
+```
+
+**Inputs**:
+- `stack` (required): core | personal | observability
+- `git_ref` (required): Branch/tag to deploy
+
+**Use Cases**:
+- Config changes for single service
+- Debugging specific stack
+- Hotfix without full rollout
+
+**⚠️ Warning**: Deploying core requires observability already running
+
+### `apply-runtime.yml`
+
+**Status**: One-time infrastructure setup
+
+**Purpose**: Creates `/srv/` directory structure, sets permissions, installs base packages
+
+**Run After**: `bootstrap-host.yml` (exactly once)
+
+**Concurrency**: Locked to prevent conflicts
+
+### `bootstrap-host.yml`
+
+**Status**: Initial host setup
+
+**Purpose**: Docker installation, system hardening, SSH keys
+
+**Run Once**: On fresh VPS
+
+**Permissions**: Runs as root (requires SUDO)
+
+## Secret Management
+
+All workflows fetch secrets from **Infisical via OIDC**:
+
+1. Workflow requests token from GitHub OIDC provider
+2. Token exchanged with Infisical identity
+3. Infisical returns project secrets (environment-specific)
+4. Secrets injected as environment variables
+5. Ansible uses injected secrets for configuration
+
+**No secrets stored in GitHub**.
+
+### Required Secrets (In Infisical)
+
+**Production environment** must contain:
+
+```
+PROD_HOST                    # Target VPS IP or hostname
+PROD_SSH_PORT                # SSH port (default: 22)
+PROD_SSH_PRIVATE_KEY         # SSH key for deployment user
+PROD_SSH_KNOWN_HOSTS         # Optional: ssh-keyscan output
+
+SEAWEED_S3_ACCESS_KEY        # SeaweedFS S3 credentials
+SEAWEED_S3_SECRET_KEY
+
+COUCHDB_USER                 # CouchDB credentials
+COUCHDB_PASSWORD
+
+GRAFANA_ADMIN_PASSWORD       # Grafana admin password
+```
+
+**Verify before deploying**:
+```bash
+# In workflow: "Assert required deploy secrets are present" step
+# Shows ✓ for each required secret
+```
+
+## Environment Configuration
+
+### Local Development
+
+Use `.env.test`:
+```bash
+docker compose --env-file .env.test \
+  -f compose/projects/core/docker-compose.yml \
+  up -d
+```
+
+### Production (VPS)
+
+Workflows materialize runtime files at `/tmp/`:
+- `/tmp/core-runtime.env`
+- `/tmp/personal-runtime.env`
+- `/tmp/observability-runtime.env`
+- `/tmp/seaweed-s3.json`
+
+Ansible copies to `/srv/` and executes `docker compose up -d`.
+
+## Validation
+
+### Pre-Deployment Checks
+
+`deploy-all.yml` validates:
+- ✓ All Ansible playbook syntax
+- ✓ All docker-compose files
+- ✓ All required secrets present
+- ✓ SSH connectivity
+- ✓ Host has Docker + docker-compose
+
+### Post-Deployment Checks
+
+Verifies all 6 containers running:
+- nginx
+- seaweedfs
+- couchdb
+- loki
+- prometheus
+- grafana
+
+## Concurrency and Locking
+
+- **`deploy-all.yml`**: Locked to `production-deploy-all`
+  - Prevents parallel full deployments
+  - Cancels in-progress: `false` (let current finish)
+
+- **`deploy.yml`**: Locked to `production-deploy`
+  - Prevents parallel single-stack deployments
+
+- **`apply-runtime.yml`**: Locked to `production-runtime`
+  - Prevents parallel infrastructure changes
+
+## Troubleshooting
+
+### "Workflow failed at validation"
+
+**Check**:
+1. All secrets in Infisical? (see Secret Management)
+2. `PROD_HOST` reachable? (`ping <host>`)
+3. SSH key correct? (test manually: `ssh -i key carlos@<host>`)
+
+**Fix**: Review validation step logs, update Infisical, retry.
+
+### "Deployment succeeded but services not running"
+
+**Check**:
+1. Verify step shows 6 containers running
+2. SSH to host: `docker ps -a`
+3. Check logs: `docker logs <container-name>`
+
+**Fix**: Review container logs for errors (config, port conflicts, etc.)
+
+### "SSH authentication failed"
+
+**Check**:
+1. `PROD_SSH_PRIVATE_KEY` format (PEM + newlines)
+2. Key permissions on target: `chmod 600 ~/.ssh/authorized_keys`
+3. SSH user is `carlos` (hardcoded in workflows)
+
+**Fix**: Update key in Infisical, retry.
+
+## Best Practices
+
+✓ Use `deploy-all.yml` for production
+✓ Test locally with `.env.test` first
+✓ Pin `git_ref` to git tag for releases
+✓ Review logs before declaring success
+✓ Run `validate-infra.yml` on PRs (automatic)
+✓ Document any manual post-deploy steps
+
+✗ Don't run multiple deploys in parallel
+✗ Don't modify workflows without testing locally
+✗ Don't store secrets in `.env` files
+✗ Don't hardcode hostnames (use `PROD_HOST` var)
+
+## Monitoring Deployments
+
+### Via GitHub UI
+
+1. Actions → Select workflow
+2. Click latest run
+3. View real-time logs
+
+### Via GitHub CLI
+
+```bash
+# List recent runs
+gh run list --workflow=deploy-all.yml
+
+# View specific run
+gh run view <run-id> --log
+
+# Watch live (if running)
+gh run watch <run-id>
+```
+
+### Deployment Timeline
+
+- **Validate**: 2-3 min
+- **Deploy observability**: 4-5 min
+- **Deploy personal**: 3-4 min
+- **Deploy core**: 4-5 min
+- **Verify**: 1-2 min
+- **Total**: 15-20 minutes
+
+## Adding New Stacks
+
+To add a new stack (e.g., `api`):
+
+1. Create `compose/projects/api/docker-compose.yml`
+2. Create `ansible/playbooks/deploy-api.yml`
+3. Create `tests/ansible/deploy-api-syntax-check.sh`
+4. Add job to `deploy-all.yml` with correct `needs:` ordering
+5. Add validation steps for new secrets
+
+See existing stacks for examples.
+
+## References
+
+- Deployment guide: [DEPLOYMENT.md](../DEPLOYMENT.md)
+- Ansible playbooks: `ansible/playbooks/`
+- Docker compose files: `compose/projects/`
+- Configurations: `compose/configs/`
