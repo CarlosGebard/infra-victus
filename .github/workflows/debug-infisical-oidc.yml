@@ -50,11 +50,9 @@ jobs:
       - name: Verify action ran
         env:
           PROD_HOST: ${{ env.PROD_HOST }}
-          PROD_SSH_USER: ${{ env.PROD_SSH_USER }}
         run: |
           set -euo pipefail
 
           [[ -n "${PROD_HOST}" ]] || { echo "Missing PROD_HOST from Infisical"; exit 1; }
-          [[ -n "${PROD_SSH_USER}" ]] || { echo "Missing PROD_SSH_USER from Infisical"; exit 1; }
 
           echo "Infisical action finished"

@@ -101,7 +101,6 @@ jobs:
         env:
           PROD_HOST: ${{ env.PROD_HOST }}
           PROD_SSH_PRIVATE_KEY: ${{ env.PROD_SSH_PRIVATE_KEY }}
-          PROD_SSH_USER: ${{ env.PROD_SSH_USER }}
           COUCHDB_PASSWORD: ${{ env.COUCHDB_PASSWORD }}
           COUCHDB_USER: ${{ env.COUCHDB_USER }}
           GRAFANA_ADMIN_PASSWORD: ${{ env.GRAFANA_ADMIN_PASSWORD }}
@@ -111,7 +110,6 @@ jobs:
           set -euo pipefail
 
           [[ -n "${PROD_HOST}" ]] || { echo "Missing PROD_HOST"; exit 1; }
-          [[ -n "${PROD_SSH_USER}" ]] || { echo "Missing PROD_SSH_USER"; exit 1; }
           [[ -n "${PROD_SSH_PRIVATE_KEY}" ]] || { echo "Missing PROD_SSH_PRIVATE_KEY"; exit 1; }
 
           case "${{ inputs.stack }}" in
@@ -231,7 +229,7 @@ jobs:
             hosts:
               deploy_target:
                 ansible_host: ${PROD_HOST}
-                ansible_user: ${PROD_SSH_USER}
+                ansible_user: ${PROD_SSH_USER:-root}
                 ansible_port: ${PROD_SSH_PORT:-22}
                 ansible_ssh_private_key_file: ${HOME}/.ssh/deploy_key
           EOF

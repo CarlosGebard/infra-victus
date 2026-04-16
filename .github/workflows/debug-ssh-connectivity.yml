@@ -51,12 +51,10 @@ jobs:
         env:
           PROD_HOST: ${{ env.PROD_HOST }}
           PROD_SSH_PRIVATE_KEY: ${{ env.PROD_SSH_PRIVATE_KEY }}
-          PROD_SSH_USER: ${{ env.PROD_SSH_USER }}
         run: |
           set -euo pipefail
 
           [[ -n "${PROD_HOST}" ]] || { echo "Missing PROD_HOST"; exit 1; }
-          [[ -n "${PROD_SSH_USER}" ]] || { echo "Missing PROD_SSH_USER"; exit 1; }
           [[ -n "${PROD_SSH_PRIVATE_KEY}" ]] || { echo "Missing PROD_SSH_PRIVATE_KEY"; exit 1; }
 
           echo "SSH contract present"
@@ -97,5 +95,5 @@ jobs:
             -p "${PROD_SSH_PORT:-22}" \
             -o BatchMode=yes \
             -o StrictHostKeyChecking=yes \
-            "${PROD_SSH_USER}@${PROD_HOST}" \
+            "${PROD_SSH_USER:-root}@${PROD_HOST}" \
             'echo ok && hostname && whoami'

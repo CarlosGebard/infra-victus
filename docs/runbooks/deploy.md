@@ -34,7 +34,8 @@ El workflow imprime claims seguros del token. No imprime token completo ni secre
 
 Usar `.github/workflows/debug-ssh-connectivity.yml` cuando quieras validar:
 
-- que Infisical entrega `PROD_HOST`, `PROD_SSH_USER`, `PROD_SSH_PRIVATE_KEY`
+- que Infisical entrega `PROD_HOST` y `PROD_SSH_PRIVATE_KEY`
+- que `PROD_SSH_USER` exista o caiga a `root`
 - que `known_hosts` o `ssh-keyscan` funcionan
 - que GitHub Actions puede abrir sesión SSH real contra el VPS
 
@@ -55,9 +56,8 @@ echo ok && hostname && whoami
 Siempre:
 
 - `PROD_HOST`
-- `PROD_SSH_USER`
 - `PROD_SSH_PRIVATE_KEY`
-- opcionales: `PROD_SSH_PORT`, `PROD_SSH_KNOWN_HOSTS`
+- opcionales: `PROD_SSH_USER` default `root`, `PROD_SSH_PORT`, `PROD_SSH_KNOWN_HOSTS`
 
 Por stack:
 
