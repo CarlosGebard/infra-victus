@@ -7,14 +7,6 @@ on:
         description: Git ref to apply
         required: true
         default: main
-      check_mode:
-        description: Run Ansible in check mode only
-        required: true
-        default: "true"
-        type: choice
-        options:
-          - "true"
-          - "false"
 
 concurrency:
   group: production-runtime
@@ -119,5 +111,4 @@ jobs:
 
           ansible-playbook \
             -i /tmp/runtime-hosts.yml \
-            playbooks/runtime.yml \
-            $([[ "${{ inputs.check_mode }}" == "true" ]] && printf '%s' --check)
+            playbooks/runtime.yml

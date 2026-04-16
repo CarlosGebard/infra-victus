@@ -10,18 +10,20 @@
 6. ejecutar `apply-runtime.yml` usando usuario admin `carlos`
 7. ejecutar `deploy.yml`
 8. elegir `stack`
-9. empezar con `check_mode=true`
 
 ## Inputs del workflow
 
 - `bootstrap-host.yml`
   - `git_ref`
+- `apply-runtime.yml`
+  - `git_ref`
 - `stack`
   - `observability`
   - `personal`
   - `core`
-- `git_ref`
-- `check_mode`
+- `deploy.yml`
+  - `stack`
+  - `git_ref`
 
 ## Workflow de debug OIDC
 
