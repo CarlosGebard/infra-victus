@@ -193,6 +193,16 @@ jobs:
             "      ansible_ssh_private_key_file: ${HOME}/.ssh/deploy_key" \
             > /tmp/deploy-hosts.yml
 
+      - name: Validate observability deploy files exist
+        run: |
+          set -euo pipefail
+          
+          echo "Checking required files for observability deployment..."
+          [[ -f /tmp/observability-runtime.env ]] || { echo "✗ Missing /tmp/observability-runtime.env"; exit 1; }
+          [[ -f /tmp/deploy-hosts.yml ]] || { echo "✗ Missing /tmp/deploy-hosts.yml"; exit 1; }
+          
+          echo "✓ All files present"
+
       - name: Deploy observability
         env:
           ANSIBLE_HOST_KEY_CHECKING: "true"
@@ -290,6 +300,16 @@ jobs:
             "      ansible_port: ${PROD_SSH_PORT:-22}" \
             "      ansible_ssh_private_key_file: ${HOME}/.ssh/deploy_key" \
             > /tmp/deploy-hosts.yml
+
+      - name: Validate personal deploy files exist
+        run: |
+          set -euo pipefail
+          
+          echo "Checking required files for personal deployment..."
+          [[ -f /tmp/personal-runtime.env ]] || { echo "✗ Missing /tmp/personal-runtime.env"; exit 1; }
+          [[ -f /tmp/deploy-hosts.yml ]] || { echo "✗ Missing /tmp/deploy-hosts.yml"; exit 1; }
+          
+          echo "✓ All files present"
 
       - name: Deploy personal
         env:
@@ -417,6 +437,21 @@ jobs:
             "      ansible_port: ${PROD_SSH_PORT:-22}" \
             "      ansible_ssh_private_key_file: ${HOME}/.ssh/deploy_key" \
             > /tmp/deploy-hosts.yml
+
+      - name: Validate core deploy files exist
+        run: |
+          set -euo pipefail
+          
+          echo "Checking required files for core deployment..."
+          [[ -f /tmp/core-runtime.env ]] || { echo "✗ Missing /tmp/core-runtime.env"; exit 1; }
+          [[ -f /tmp/seaweed-s3.json ]] || { echo "✗ Missing /tmp/seaweed-s3.json"; exit 1; }
+          [[ -f /tmp/deploy-hosts.yml ]] || { echo "✗ Missing /tmp/deploy-hosts.yml"; exit 1; }
+          
+          echo "✓ All files present"
+          echo ""
+          echo "=== seaweed-s3.json (first 200 bytes) ==="
+          head -c 200 /tmp/seaweed-s3.json
+          echo ""
 
       - name: Deploy core
         env:

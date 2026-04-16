@@ -2,6 +2,7 @@ services:
   couchdb:
     image: couchdb:3.5.1
     container_name: couchdb
+    user: "5984:5984"
     restart: unless-stopped
     environment:
       COUCHDB_USER: ${COUCHDB_USER:-admin}
