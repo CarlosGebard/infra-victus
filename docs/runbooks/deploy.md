@@ -14,6 +14,8 @@
 
 ## Inputs del workflow
 
+- `bootstrap-host.yml`
+  - `git_ref`
 - `stack`
   - `observability`
   - `personal`

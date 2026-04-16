@@ -7,14 +7,6 @@ on:
         description: Git ref to deploy
         required: true
         default: main
-      check_mode:
-        description: Run Ansible in check mode only
-        required: true
-        default: "true"
-        type: choice
-        options:
-          - "true"
-          - "false"
 
 concurrency:
   group: production-bootstrap
@@ -119,5 +111,4 @@ jobs:
 
           ansible-playbook \
             -i /tmp/bootstrap-hosts.yml \
-            playbooks/bootstrap.yml \
-            $([[ "${{ inputs.check_mode }}" == "true" ]] && printf '%s' --check)
+            playbooks/bootstrap.yml
