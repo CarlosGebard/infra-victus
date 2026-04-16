@@ -44,3 +44,8 @@ Ansible no genera la app; solo prepara host, distribuye archivos y ejecuta despl
 - `.github/workflows/bootstrap-host.yml`
 - `.github/workflows/apply-runtime.yml`
 - `.github/workflows/deploy.yml`
+
+## Documentos clave
+
+- secrets y variables: [docs/secrets-and-variables.md](/home/carlos/victus/infra-victus/docs/secrets-and-variables.md)
+- ADR estructura operativa: [docs/adr/0001-structure-decisions.md](/home/carlos/victus/infra-victus/docs/adr/0001-structure-decisions.md)

@@ -258,6 +258,44 @@ Refactorizar la capa de deploy para que deje de estar centrada en `core` y pase 
 ## Risks
 
 - `core` depende de upstreams de observability definidos en NGINX, así que el orden de rollout sigue importando.
+
+---
+
+## Goal
+
+Documentar contrato operativo de variables y secretos, y dejar registradas decisiones estructurales del repositorio para evitar ambigüedad en CI/CD, runtime y provisioning.
+
+## Scope
+
+- Crear un documento en `docs/` con matriz de variables y secretos.
+- Crear un ADR corto en `docs/adr/` con decisiones de estructura vigentes.
+- Mantener CD manual en GitHub Actions.
+- Explicar el boundary actual de `runtime`.
+- Explicar estado decidido de provisioning para Grafana.
+
+## Assumptions
+
+- No se cambia comportamiento del repositorio en este paso; solo se documenta contrato y decisiones.
+- Las decisiones deben reflejar estado actual del árbol.
+- Si más adelante cambian `runtime` o provisioning, debe abrirse un nuevo ADR.
+
+## Steps
+
+1. Crear `docs/secrets-and-variables.md`
+2. Crear `docs/adr/0001-structure-decisions.md`
+3. Actualizar `docs/README.md` con enlaces nuevos
+4. Revisar consistencia con workflows, compose y group_vars actuales
+
+## Validation
+
+- Verificar que nombres documentados existan en `.github/workflows/*.yml`
+- Verificar que paths y contratos coincidan con `compose/` y `ansible/inventories/production/group_vars/`
+- Revisar enlaces desde `docs/README.md`
+
+## Risks
+
+- Si decisiones documentadas no reflejan intención futura del proyecto, luego habrá que reemplazarlas con un ADR nuevo.
+- Documentar estado actual de `runtime` puede consolidar acoplamientos que después convenga separar.
 - Un modelo de variables demasiado genérico puede volver menos legibles los roles.
 - Si falta algún secreto opcional/obligatorio en workflows, el primer run en GitHub fallará aunque la sintaxis local pase.
 

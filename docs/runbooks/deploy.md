@@ -27,20 +27,22 @@
 
 Siempre:
 
-- `BOOTSTRAP_HOST`
-- `BOOTSTRAP_SSH_USER`
-- `BOOTSTRAP_SSH_PRIVATE_KEY`
-- opcionales: `BOOTSTRAP_SSH_PORT`, `BOOTSTRAP_KNOWN_HOSTS`
+- `PROD_HOST`
+- `PROD_SSH_USER`
+- `PROD_SSH_PRIVATE_KEY`
+- opcionales: `PROD_SSH_PORT`, `PROD_SSH_KNOWN_HOSTS`
 
 Por stack:
 
 - `core`
-  - `CORE_RUNTIME_ENV`
-  - `CORE_RUNTIME_SEAWEED_S3_JSON`
+  - `CORE_RUNTIME_ENV` en GitHub Actions solo si no tiene secretos
+  - `SEAWEED_S3_ACCESS_KEY`
+  - `SEAWEED_S3_SECRET_KEY`
 - `personal`
-  - `PERSONAL_RUNTIME_ENV`
+  - `COUCHDB_USER`
+  - `COUCHDB_PASSWORD`
 - `observability`
-  - `OBSERVABILITY_RUNTIME_ENV`
+  - `GRAFANA_ADMIN_PASSWORD`
 
 ## Validación mínima antes de push
 
