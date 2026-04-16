@@ -157,53 +157,53 @@ jobs:
               if [[ -n "${CORE_RUNTIME_ENV:-}" ]]; then
                 printf '%s\n' "$CORE_RUNTIME_ENV" > "$DEPLOY_RUNTIME_ENV_FILE"
               else
-                cat > "$DEPLOY_RUNTIME_ENV_FILE" <<EOF
-                NGINX_BIND_IP=127.0.0.1
-                NGINX_HTTP_PORT=8080
-                EOF
+                printf '%s\n' \
+                  'NGINX_BIND_IP=127.0.0.1' \
+                  'NGINX_HTTP_PORT=8080' \
+                  > "$DEPLOY_RUNTIME_ENV_FILE"
               fi
-              cat > /tmp/seaweed-s3.json <<EOF
-              {
-                "identities": [
-                  {
-                    "name": "infra-prod",
-                    "credentials": [
-                      {
-                        "accessKey": "${SEAWEED_S3_ACCESS_KEY}",
-                        "secretKey": "${SEAWEED_S3_SECRET_KEY}"
-                      }
-                    ],
-                    "actions": [
-                      "Admin",
-                      "Read",
-                      "Write",
-                      "List"
-                    ]
-                  }
-                ]
-              }
-              EOF
+              printf '%s\n' \
+                '{' \
+                '  "identities": [' \
+                '    {' \
+                '      "name": "infra-prod",' \
+                '      "credentials": [' \
+                '        {' \
+                "          \"accessKey\": \"${SEAWEED_S3_ACCESS_KEY}\"," \
+                "          \"secretKey\": \"${SEAWEED_S3_SECRET_KEY}\"" \
+                '        }' \
+                '      ],' \
+                '      "actions": [' \
+                '        "Admin",' \
+                '        "Read",' \
+                '        "Write",' \
+                '        "List"' \
+                '      ]' \
+                '    }' \
+                '  ]' \
+                '}' \
+                > /tmp/seaweed-s3.json
               chmod 600 "$DEPLOY_RUNTIME_ENV_FILE" /tmp/seaweed-s3.json
               ;;
             personal)
-              cat > "$DEPLOY_RUNTIME_ENV_FILE" <<EOF
-              COUCHDB_USER=${COUCHDB_USER}
-              COUCHDB_PASSWORD=${COUCHDB_PASSWORD}
-              EOF
+              printf '%s\n' \
+                "COUCHDB_USER=${COUCHDB_USER}" \
+                "COUCHDB_PASSWORD=${COUCHDB_PASSWORD}" \
+                > "$DEPLOY_RUNTIME_ENV_FILE"
               chmod 600 "$DEPLOY_RUNTIME_ENV_FILE"
               ;;
             observability)
-              cat > "$DEPLOY_RUNTIME_ENV_FILE" <<EOF
-              LOKI_BIND_IP=127.0.0.1
-              LOKI_HTTP_PORT=3100
-              PROMETHEUS_BIND_IP=127.0.0.1
-              PROMETHEUS_HTTP_PORT=9090
-              GRAFANA_ADMIN_USER=admin
-              GRAFANA_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
-              GRAFANA_BIND_IP=127.0.0.1
-              GRAFANA_HTTP_PORT=3000
-              GRAFANA_ROOT_URL=http://127.0.0.1:8080/grafana/
-              EOF
+              printf '%s\n' \
+                'LOKI_BIND_IP=127.0.0.1' \
+                'LOKI_HTTP_PORT=3100' \
+                'PROMETHEUS_BIND_IP=127.0.0.1' \
+                'PROMETHEUS_HTTP_PORT=9090' \
+                'GRAFANA_ADMIN_USER=admin' \
+                "GRAFANA_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}" \
+                'GRAFANA_BIND_IP=127.0.0.1' \
+                'GRAFANA_HTTP_PORT=3000' \
+                'GRAFANA_ROOT_URL=http://127.0.0.1:8080/grafana/' \
+                > "$DEPLOY_RUNTIME_ENV_FILE"
               chmod 600 "$DEPLOY_RUNTIME_ENV_FILE"
               ;;
           esac
@@ -215,15 +215,15 @@ jobs:
         run: |
           set -euo pipefail
 
-          cat > "$DEPLOY_INVENTORY_FILE" <<EOF
-          all:
-            hosts:
-              deploy_target:
-                ansible_host: ${PROD_HOST}
-                ansible_user: carlos
-                ansible_port: ${PROD_SSH_PORT:-22}
-                ansible_ssh_private_key_file: ${HOME}/.ssh/deploy_key
-          EOF
+          printf '%s\n' \
+            'all:' \
+            '  hosts:' \
+            '    deploy_target:' \
+            "      ansible_host: ${PROD_HOST}" \
+            '      ansible_user: carlos' \
+            "      ansible_port: ${PROD_SSH_PORT:-22}" \
+            "      ansible_ssh_private_key_file: ${HOME}/.ssh/deploy_key" \
+            > "$DEPLOY_INVENTORY_FILE"
 
       - name: Run selected deploy playbook
         env:

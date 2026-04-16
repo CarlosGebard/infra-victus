@@ -91,15 +91,15 @@ jobs:
         run: |
           set -euo pipefail
 
-          cat > /tmp/runtime-hosts.yml <<EOF
-          all:
-            hosts:
-              runtime_target:
-                ansible_host: ${PROD_HOST}
-                ansible_user: carlos
-                ansible_port: ${PROD_SSH_PORT:-22}
-                ansible_ssh_private_key_file: ${HOME}/.ssh/runtime_key
-          EOF
+          printf '%s\n' \
+            'all:' \
+            '  hosts:' \
+            '    runtime_target:' \
+            "      ansible_host: ${PROD_HOST}" \
+            '      ansible_user: carlos' \
+            "      ansible_port: ${PROD_SSH_PORT:-22}" \
+            "      ansible_ssh_private_key_file: ${HOME}/.ssh/runtime_key" \
+            > /tmp/runtime-hosts.yml
 
       - name: Run runtime playbook
         env:

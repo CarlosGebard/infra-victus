@@ -91,15 +91,15 @@ jobs:
         run: |
           set -euo pipefail
 
-          cat > /tmp/bootstrap-hosts.yml <<EOF
-          all:
-            hosts:
-              bootstrap_target:
-                ansible_host: ${PROD_HOST}
-                ansible_user: root
-                ansible_port: ${PROD_SSH_PORT:-22}
-                ansible_ssh_private_key_file: ${HOME}/.ssh/bootstrap_key
-          EOF
+          printf '%s\n' \
+            'all:' \
+            '  hosts:' \
+            '    bootstrap_target:' \
+            "      ansible_host: ${PROD_HOST}" \
+            '      ansible_user: root' \
+            "      ansible_port: ${PROD_SSH_PORT:-22}" \
+            "      ansible_ssh_private_key_file: ${HOME}/.ssh/bootstrap_key" \
+            > /tmp/bootstrap-hosts.yml
 
       - name: Run bootstrap playbook
         env:
