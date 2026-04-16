@@ -1,0 +1,101 @@
+name: Debug SSH Connectivity
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: production-debug-ssh-connectivity
+  cancel-in-progress: false
+
+jobs:
+  debug:
+    name: Debug SSH connectivity to production host
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Assert required GitHub environment variables are present
+        env:
+          INFISICAL_IDENTITY_ID: ${{ vars.INFISICAL_IDENTITY_ID }}
+          INFISICAL_PROJECT_SLUG: ${{ vars.INFISICAL_PROJECT_SLUG }}
+          INFISICAL_ENV_SLUG: ${{ vars.INFISICAL_ENV_SLUG }}
+        run: |
+          set -euo pipefail
+
+          [[ -n "${INFISICAL_IDENTITY_ID}" ]] || { echo "Missing INFISICAL_IDENTITY_ID"; exit 1; }
+          [[ -n "${INFISICAL_PROJECT_SLUG}" ]] || { echo "Missing INFISICAL_PROJECT_SLUG"; exit 1; }
+          [[ -n "${INFISICAL_ENV_SLUG}" ]] || { echo "Missing INFISICAL_ENV_SLUG"; exit 1; }
+
+          echo "GitHub environment variables present"
+
+      - name: Pull secrets from Infisical via OIDC
+        uses: Infisical/secrets-action@v1.0.10
+        with:
+          method: "oidc"
+          identity-id: "${{ vars.INFISICAL_IDENTITY_ID }}"
+          project-slug: "${{ vars.INFISICAL_PROJECT_SLUG }}"
+          env-slug: "${{ vars.INFISICAL_ENV_SLUG }}"
+
+      - name: Assert minimum SSH contract
+        env:
+          PROD_HOST: ${{ env.PROD_HOST }}
+          PROD_SSH_PRIVATE_KEY: ${{ env.PROD_SSH_PRIVATE_KEY }}
+          PROD_SSH_USER: ${{ env.PROD_SSH_USER }}
+        run: |
+          set -euo pipefail
+
+          [[ -n "${PROD_HOST}" ]] || { echo "Missing PROD_HOST"; exit 1; }
+          [[ -n "${PROD_SSH_USER}" ]] || { echo "Missing PROD_SSH_USER"; exit 1; }
+          [[ -n "${PROD_SSH_PRIVATE_KEY}" ]] || { echo "Missing PROD_SSH_PRIVATE_KEY"; exit 1; }
+
+          echo "SSH contract present"
+
+      - name: Prepare SSH material
+        env:
+          PROD_HOST: ${{ env.PROD_HOST }}
+          PROD_SSH_KNOWN_HOSTS: ${{ env.PROD_SSH_KNOWN_HOSTS }}
+          PROD_SSH_PORT: ${{ env.PROD_SSH_PORT }}
+          PROD_SSH_PRIVATE_KEY: ${{ env.PROD_SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p "$HOME/.ssh"
+          chmod 700 "$HOME/.ssh"
+
+          printf '%s\n' "$PROD_SSH_PRIVATE_KEY" > "$HOME/.ssh/debug_key"
+          chmod 600 "$HOME/.ssh/debug_key"
+
+          if [[ -n "${PROD_SSH_KNOWN_HOSTS:-}" ]]; then
+            printf '%s\n' "$PROD_SSH_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          else
+            ssh-keyscan -p "${PROD_SSH_PORT:-22}" -H "$PROD_HOST" >> "$HOME/.ssh/known_hosts"
+          fi
+
+          chmod 644 "$HOME/.ssh/known_hosts"
+
+      - name: Run SSH smoke test
+        env:
+          PROD_HOST: ${{ env.PROD_HOST }}
+          PROD_SSH_PORT: ${{ env.PROD_SSH_PORT }}
+          PROD_SSH_USER: ${{ env.PROD_SSH_USER }}
+        run: |
+          set -euo pipefail
+
+          ssh \
+            -i "$HOME/.ssh/debug_key" \
+            -p "${PROD_SSH_PORT:-22}" \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            "${PROD_SSH_USER}@${PROD_HOST}" \
+            'echo ok && hostname && whoami'

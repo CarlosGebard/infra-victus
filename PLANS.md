@@ -403,3 +403,42 @@ Consolidar los workflows de deploy en un solo `.github/workflows/deploy.yml` par
 ## Ready-to-implement summary
 
 La ruta mínima segura es mantener Ansible separado por stack y unificar solo la capa de GitHub Actions. El workflow único debe recibir `stack`, validar los secretos requeridos para ese stack, generar los archivos temporales necesarios y ejecutar el syntax-check y playbook correspondientes.
+
+---
+
+## Goal
+
+Agregar un workflow manual de smoke test SSH para comprobar conectividad real desde GitHub Actions hacia el VPS usando el mismo contrato de secretos de producción.
+
+## Scope
+
+- Crear workflow manual de debug SSH.
+- Reusar OIDC + Infisical para obtener secretos.
+- Preparar llave privada y `known_hosts`.
+- Ejecutar un comando remoto inocuo.
+- Actualizar runbook con el flujo recomendado de diagnóstico.
+
+## Assumptions
+
+- El test debe ser de solo lectura.
+- No debe ejecutar Ansible ni cambiar estado del host.
+- El host acepta acceso SSH con `PROD_HOST`, `PROD_SSH_USER` y `PROD_SSH_PRIVATE_KEY`.
+
+## Steps
+
+1. Crear `.github/workflows/debug-ssh-connectivity.yml`
+2. Validar secrets mínimos después de Infisical
+3. Preparar material SSH temporal
+4. Ejecutar comando remoto `echo ok && hostname && whoami`
+5. Actualizar `docs/runbooks/deploy.md`
+
+## Validation
+
+- Revisar YAML del workflow nuevo
+- Verificar nombres `PROD_*`
+- Confirmar que no se impriman secretos
+
+## Risks
+
+- Si `known_hosts` no existe y `ssh-keyscan` falla, diagnóstico puede confundir problema de reachability con problema de host key bootstrap.
+- Si firewall bloquea runner de GitHub, test fallará aunque acceso desde consola local funcione.

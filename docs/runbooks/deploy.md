@@ -5,9 +5,10 @@
 1. validar ansible
 2. validar compose
 3. si hay dudas de OIDC o Infisical, ejecutar workflow `debug-infisical-oidc.yml`
-4. ejecutar workflow `deploy.yml`
-5. elegir `stack`
-6. empezar con `check_mode=true`
+4. si hay dudas de reachability o credenciales SSH, ejecutar workflow `debug-ssh-connectivity.yml`
+5. ejecutar workflow `deploy.yml`
+6. elegir `stack`
+7. empezar con `check_mode=true`
 
 ## Inputs del workflow
 
@@ -28,6 +29,20 @@ Usar `.github/workflows/debug-infisical-oidc.yml` cuando quieras validar:
 - que contrato mínimo de secretos exista
 
 El workflow imprime claims seguros del token. No imprime token completo ni secretos.
+
+## Workflow de debug SSH
+
+Usar `.github/workflows/debug-ssh-connectivity.yml` cuando quieras validar:
+
+- que Infisical entrega `PROD_HOST`, `PROD_SSH_USER`, `PROD_SSH_PRIVATE_KEY`
+- que `known_hosts` o `ssh-keyscan` funcionan
+- que GitHub Actions puede abrir sesión SSH real contra el VPS
+
+El workflow no ejecuta Ansible ni cambia estado del host. Solo corre:
+
+```bash
+echo ok && hostname && whoami
+```
 
 ## Orden recomendado
 
