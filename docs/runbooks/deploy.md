@@ -6,9 +6,11 @@
 2. validar compose
 3. si hay dudas de OIDC o Infisical, ejecutar workflow `debug-infisical-oidc.yml`
 4. si hay dudas de reachability o credenciales SSH, ejecutar workflow `debug-ssh-connectivity.yml`
-5. ejecutar workflow `deploy.yml`
-6. elegir `stack`
-7. empezar con `check_mode=true`
+5. ejecutar `bootstrap-host.yml` usando acceso inicial como `root`
+6. ejecutar `apply-runtime.yml` usando usuario admin `carlos`
+7. ejecutar `deploy.yml`
+8. elegir `stack`
+9. empezar con `check_mode=true`
 
 ## Inputs del workflow
 
@@ -35,7 +37,7 @@ El workflow imprime claims seguros del token. No imprime token completo ni secre
 Usar `.github/workflows/debug-ssh-connectivity.yml` cuando quieras validar:
 
 - que Infisical entrega `PROD_HOST` y `PROD_SSH_PRIVATE_KEY`
-- que `PROD_SSH_USER` exista o caiga a `root`
+- que workflow pueda entrar como `root`
 - que `known_hosts` o `ssh-keyscan` funcionan
 - que GitHub Actions puede abrir sesión SSH real contra el VPS
 
@@ -44,6 +46,19 @@ El workflow no ejecuta Ansible ni cambia estado del host. Solo corre:
 ```bash
 echo ok && hostname && whoami
 ```
+
+## Usuarios por fase
+
+- `debug-ssh-connectivity.yml`: conecta como `root`
+- `bootstrap-host.yml`: conecta como `root`
+- `apply-runtime.yml`: conecta como `carlos`
+- `deploy.yml`: conecta como `carlos`
+
+Razón:
+
+- `root` sirve para primer acceso al host virgen
+- bootstrap crea y prepara usuario admin
+- runtime y deploy deben operar con usuario admin ya provisionado
 
 ## Orden recomendado
 
@@ -57,7 +72,9 @@ Siempre:
 
 - `PROD_HOST`
 - `PROD_SSH_PRIVATE_KEY`
-- opcionales: `PROD_SSH_USER` default `root`, `PROD_SSH_PORT`, `PROD_SSH_KNOWN_HOSTS`
+- opcionales: `PROD_SSH_PORT`, `PROD_SSH_KNOWN_HOSTS`
+
+No se requiere `PROD_SSH_USER` para flujo actual.
 
 Por stack:
 

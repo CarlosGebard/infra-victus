@@ -86,7 +86,6 @@ jobs:
         env:
           PROD_HOST: ${{ env.PROD_HOST }}
           PROD_SSH_PORT: ${{ env.PROD_SSH_PORT }}
-          PROD_SSH_USER: ${{ env.PROD_SSH_USER }}
         run: |
           set -euo pipefail
 
@@ -95,5 +94,5 @@ jobs:
             -p "${PROD_SSH_PORT:-22}" \
             -o BatchMode=yes \
             -o StrictHostKeyChecking=yes \
-            "${PROD_SSH_USER:-root}@${PROD_HOST}" \
+            "root@${PROD_HOST}" \
             'echo ok && hostname && whoami'

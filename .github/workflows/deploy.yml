@@ -220,7 +220,6 @@ jobs:
         env:
           PROD_HOST: ${{ env.PROD_HOST }}
           PROD_SSH_PORT: ${{ env.PROD_SSH_PORT }}
-          PROD_SSH_USER: ${{ env.PROD_SSH_USER }}
         run: |
           set -euo pipefail
 
@@ -229,7 +228,7 @@ jobs:
             hosts:
               deploy_target:
                 ansible_host: ${PROD_HOST}
-                ansible_user: ${PROD_SSH_USER:-root}
+                ansible_user: carlos
                 ansible_port: ${PROD_SSH_PORT:-22}
                 ansible_ssh_private_key_file: ${HOME}/.ssh/deploy_key
           EOF
