@@ -160,6 +160,46 @@ Mi recomendación es:
 - `alloy` puede tentar a entrar aquí por conveniencia, pero conceptualmente mete observability en una capa demasiado baja.
 - Si no definimos bien el inventario temporal en CI, el workflow de runtime repetirá fragilidad del bootstrap.
 
+---
+
+## Goal
+
+Agregar un workflow manual de diagnóstico para validar OIDC de GitHub Actions contra Infisical con información de debug suficiente para aislar fallas de configuración sin exponer secretos.
+
+## Scope
+
+- Crear workflow manual dedicado a OIDC + Infisical debug.
+- Verificar presencia de variables requeridas de GitHub environment.
+- Solicitar token OIDC desde GitHub Actions.
+- Decodificar y mostrar claims seguros del token.
+- Ejecutar fetch desde Infisical y validar contrato mínimo.
+- Actualizar runbook de deploy para mencionar workflow nuevo.
+
+## Assumptions
+
+- El diagnóstico debe ser manual.
+- No se deben imprimir secretos ni tokens completos.
+- El repositorio ya tiene permisos `id-token: write` cuando un workflow necesita OIDC.
+
+## Steps
+
+1. Crear `.github/workflows/debug-infisical-oidc.yml`
+2. Añadir pasos de debug seguro para claims OIDC
+3. Añadir prueba de fetch de secretos desde Infisical
+4. Actualizar `docs/runbooks/deploy.md`
+5. Revisar sintaxis YAML y consistencia
+
+## Validation
+
+- Revisar workflow renderizado localmente
+- Verificar referencias a `vars.INFISICAL_*`
+- Validar que no se impriman secretos completos
+
+## Risks
+
+- Mostrar claims OIDC puede exponer metadata de ejecución, pero no secretos; mantener salida acotada.
+- Si Infisical requiere `audience` específico y no coincide, el workflow debe fallar con mensaje claro.
+
 ## Decision notes
 
 - Recomendación fuerte: runtime = Docker + filesystem + validation

@@ -4,9 +4,10 @@
 
 1. validar ansible
 2. validar compose
-3. ejecutar workflow `deploy.yml`
-4. elegir `stack`
-5. empezar con `check_mode=true`
+3. si hay dudas de OIDC o Infisical, ejecutar workflow `debug-infisical-oidc.yml`
+4. ejecutar workflow `deploy.yml`
+5. elegir `stack`
+6. empezar con `check_mode=true`
 
 ## Inputs del workflow
 
@@ -16,6 +17,17 @@
   - `core`
 - `git_ref`
 - `check_mode`
+
+## Workflow de debug OIDC
+
+Usar `.github/workflows/debug-infisical-oidc.yml` cuando quieras validar:
+
+- que GitHub entregue token OIDC
+- que los `vars.INFISICAL_*` estén presentes
+- que Infisical acepte identidad OIDC
+- que contrato mínimo de secretos exista
+
+El workflow imprime claims seguros del token. No imprime token completo ni secretos.
 
 ## Orden recomendado
 
