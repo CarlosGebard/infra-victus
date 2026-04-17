@@ -18,7 +18,7 @@ Infraestructura reproducible para un VPS usando:
 - `.github/workflows/`
   - `bootstrap-host.yml`
   - `apply-runtime.yml`
-  - `deploy.yml`
+  - `deploy-all.yml`
   - `validate-infra.yml`
 
 ## Modelo operativo
@@ -36,15 +36,15 @@ Infraestructura reproducible para un VPS usando:
    - ownership para datos de contenedores
 
 3. `deploy`
-   - workflow único con `stack=core|personal|observability`
-   - cada stack mantiene su playbook propio
-   - no existe `deploy all`
+   - `deploy-all.yml` es pipeline CD principal
+   - corre automático en `push` a `main` para cambios de infraestructura
+   - mantiene orden `observability -> personal -> core`
 
 ## Orden recomendado de rollout
 
-1. `stack=observability`
-2. `stack=personal`
-3. `stack=core`
+1. `observability`
+2. `personal`
+3. `core`
 
 `core` publica la config edge de NGINX y referencia upstreams de observability y couchdb, por eso el orden importa.
 

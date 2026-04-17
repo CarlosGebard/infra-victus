@@ -15,10 +15,21 @@ on:
         options:
           - "true"
           - "false"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/**"
+      - "ansible/**"
+      - "compose/**"
+      - "tests/ansible/**"
 
 concurrency:
   group: production-deploy-all
   cancel-in-progress: false
+
+env:
+  DEPLOY_GIT_REF: ${{ inputs.git_ref || github.sha }}
 
 jobs:
   validate:
@@ -34,7 +45,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v5
         with:
-          ref: ${{ inputs.git_ref }}
+          ref: ${{ env.DEPLOY_GIT_REF }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -116,7 +127,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v5
         with:
-          ref: ${{ inputs.git_ref }}
+          ref: ${{ env.DEPLOY_GIT_REF }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -230,7 +241,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v5
         with:
-          ref: ${{ inputs.git_ref }}
+          ref: ${{ env.DEPLOY_GIT_REF }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -338,7 +349,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v5
         with:
-          ref: ${{ inputs.git_ref }}
+          ref: ${{ env.DEPLOY_GIT_REF }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -481,7 +492,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v5
         with:
-          ref: ${{ inputs.git_ref }}
+          ref: ${{ env.DEPLOY_GIT_REF }}
 
       - name: Set up Python
         uses: actions/setup-python@v5

@@ -10,9 +10,8 @@ Workflows manage infrastructure deployment via GitHub Actions + Infisical OIDC.
 |----------|---------|---------|-----------|
 | `bootstrap-host.yml` | Initial VPS setup (root access required) | Manual dispatch | Once per host |
 | `apply-runtime.yml` | Runtime environment setup (Ansible infrastructure) | Manual dispatch | Once after bootstrap |
-| **`deploy-all.yml`** | **Deploy all 3 stacks in correct order** | Manual dispatch | Production rollout |
-| `deploy.yml` | Deploy single stack (core/personal/observability) | Manual dispatch | Partial updates |
-| `validate-infra.yml` | Validate compose files + syntax | On PR to main | Each commit |
+| **`deploy-all.yml`** | **Deploy all 3 stacks in correct order** | `push` to `main` on infra changes + manual dispatch | Production rollout |
+| `validate-infra.yml` | Validate compose files + syntax | PR to `main`, `push` to `main`, manual dispatch | Each infra change |
 | `debug-*.yml` | Troubleshooting utilities | Manual dispatch | Debugging only |
 
 ## Recommended Deployment Flow
@@ -33,13 +32,9 @@ Workflows manage infrastructure deployment via GitHub Actions + Infisical OIDC.
 ### Subsequent Updates
 
 ```
-deploy-all.yml
-```
-
-### Hotfixes (Emergency Only)
-
-```
-deploy.yml (with specific stack)
+push to main
+  └─ auto-runs validate-infra.yml
+  └─ auto-runs deploy-all.yml
 ```
 
 ## Workflow Architecture
@@ -61,9 +56,13 @@ deploy-core (nginx, seaweedfs)
 verify (all 6 services healthy)
 ```
 
+**Triggers**:
+- Automatic: `push` to `main` when infra files change
+- Manual: `workflow_dispatch`
+
 **Inputs**:
-- `git_ref` (required): Branch/tag to deploy (default: main)
-- `auto_rollback` (optional): Rollback on failure (currently informational)
+- `git_ref` (manual only): Branch/tag to deploy (default: main)
+- `auto_rollback` (manual only, optional): Rollback on failure (currently informational)
 
 **Outputs**:
 - ✓ All 6 containers running
@@ -72,28 +71,6 @@ verify (all 6 services healthy)
 **Concurrency**: Prevents parallel deployments (lock on `production-deploy-all`)
 
 **Time**: ~15-20 minutes
-
-### `deploy.yml` (Individual Stack)
-
-**Status**: Fallback for single-stack updates
-
-**Flow**:
-```
-validate (selected stack only)
-    ↓
-deploy-<stack>
-```
-
-**Inputs**:
-- `stack` (required): core | personal | observability
-- `git_ref` (required): Branch/tag to deploy
-
-**Use Cases**:
-- Config changes for single service
-- Debugging specific stack
-- Hotfix without full rollout
-
-**⚠️ Warning**: Deploying core requires observability already running
 
 ### `apply-runtime.yml`
 
@@ -199,9 +176,6 @@ Verifies all 6 containers running:
 - **`deploy-all.yml`**: Locked to `production-deploy-all`
   - Prevents parallel full deployments
   - Cancels in-progress: `false` (let current finish)
-
-- **`deploy.yml`**: Locked to `production-deploy`
-  - Prevents parallel single-stack deployments
 
 - **`apply-runtime.yml`**: Locked to `production-runtime`
   - Prevents parallel infrastructure changes

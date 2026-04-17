@@ -4,6 +4,8 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
+"$ROOT_DIR/compose/scripts/ensure-shared-network.sh"
+
 up_stack() {
   local stack="$1"
   local env_file="$ROOT_DIR/compose/projects/$stack/.env"

@@ -8,8 +8,8 @@
 4. si hay dudas de reachability o credenciales SSH, ejecutar workflow `debug-ssh-connectivity.yml`
 5. ejecutar `bootstrap-host.yml` usando acceso inicial como `root`
 6. ejecutar `apply-runtime.yml` usando usuario admin `carlos`
-7. ejecutar `deploy.yml`
-8. elegir `stack`
+7. `push` a `main` dispara validación y deploy automático si hubo cambios en `.github/workflows/`, `ansible/`, `compose/` o `tests/ansible/`
+8. usar dispatch manual solo para bootstrap, runtime, redeploy puntual o rollback operativo
 
 ## Inputs del workflow
 
@@ -17,13 +17,9 @@
   - `git_ref`
 - `apply-runtime.yml`
   - `git_ref`
-- `stack`
-  - `observability`
-  - `personal`
-  - `core`
-- `deploy.yml`
-  - `stack`
-  - `git_ref`
+- `deploy-all.yml`
+  - `git_ref` solo en `workflow_dispatch`
+  - en `push` a `main`, despliega SHA del commit automáticamente
 
 ## Workflow de debug OIDC
 
@@ -56,7 +52,7 @@ echo ok && hostname && whoami
 - `debug-ssh-connectivity.yml`: conecta como `root`
 - `bootstrap-host.yml`: conecta como `root`
 - `apply-runtime.yml`: conecta como `carlos`
-- `deploy.yml`: conecta como `carlos`
+- `deploy-all.yml`: conecta como `carlos`
 
 Razón:
 
@@ -102,3 +98,7 @@ make compose-validate
 ## Nota operacional
 
 `core` despliega la config edge de NGINX. Esa config referencia `couchdb`, `grafana`, `prometheus` y `loki`, así que no conviene desplegar `core` primero.
+
+`infra_shared_backend` es red Docker compartida entre stacks. Debe existir antes de cualquier `docker compose up`. Localmente, `compose/scripts/up-local.sh` y `compose/scripts/up-core.sh` la crean si falta. En servidor, `deploy/shared` la asegura antes de validar o desplegar stack.
+
+`deploy-all.yml` quedó como pipeline CD principal. En `push` a `main` corre automáticamente solo cuando cambian archivos de infraestructura. Si environment `production` exige aprobación manual en GitHub, workflow quedará pausado ahí hasta aprobar.

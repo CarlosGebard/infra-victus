@@ -2,10 +2,9 @@
 
 ## Overview
 
-Infra-Victus uses two deployment workflows:
+Infra-Victus uses deployment workflows:
 
-- **`deploy-all.yml`** - Orchestrates all stacks in correct order (recommended for full rollout)
-- **`deploy.yml`** - Deploy individual stacks (use for partial updates)
+- **`deploy-all.yml`** - Orchestrates all stacks in correct order. Main CD workflow. Auto-runs on `push` to `main` for infra changes.
 
 ## Stack Dependencies
 
@@ -25,14 +24,19 @@ core (app layer, depends on observability)
 
 Use **`deploy-all.yml`** workflow:
 
-1. **Trigger via GitHub UI**
+1. **Automatic path**
+   - Push or merge to `main`
+   - If change touches `.github/workflows/`, `ansible/`, `compose/`, or `tests/ansible/`, GitHub starts rollout automatically
+   - Workflow deploys pushed commit SHA
+
+2. **Manual path via GitHub UI**
    - Go to Actions → Deploy All Stacks
    - Click "Run workflow"
    - Inputs:
      - `git_ref`: branch/tag to deploy (default: main)
      - `auto_rollback`: currently informational; manual rollback required
 
-2. **Execution Flow**
+3. **Execution Flow**
    ```
    validate (all secrets, syntax, docker-compose)
        ↓
@@ -44,23 +48,7 @@ Use **`deploy-all.yml`** workflow:
    verify (all 6 services running)
    ```
 
-3. **Timeline**: ~15-20 minutes total
-
-### Single Stack Deployment
-
-Use **`deploy.yml`** workflow for partial updates:
-
-```bash
-# Example: Update only Nginx config in core
-# 1. Edit compose/projects/core/docker-compose.yml
-# 2. Commit & push to main
-# 3. Actions → Deploy Single Stack
-# 4. Select stack=core, git_ref=main
-```
-
-**Supported stacks**: core, personal, observability
-
-**⚠️ Important**: If deploying core, ensure observability already deployed first.
+4. **Timeline**: ~15-20 minutes total
 
 ## Manual Deployment (Local Dev)
 
@@ -200,7 +188,6 @@ docker compose up -d
 ✓ Review logs before and after each deployment
 ✓ Maintain backup of `/srv/data` before major updates
 ✓ Document any manual post-deploy steps
-✓ Use single-stack deployment only for hotfixes
 
 ✗ Never run multiple deploys in parallel (concurrency lock prevents this)
 ✗ Don't manually edit production compose files (always via git)

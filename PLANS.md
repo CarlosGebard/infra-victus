@@ -2,6 +2,118 @@
 
 Diseñar el siguiente workflow de GitHub Actions para `runtime`, separado de `bootstrap`, enfocado en dejar el host listo para ejecutar la infraestructura: Docker instalado, servicios de runtime activos y filesystem del host preparado con ownership y permisos compatibles con los contenedores.
 
+---
+
+## Goal
+
+Corregir modelo de red compartida Docker para que `infra_shared_backend` sea recurso externo estable entre stacks `core`, `personal` y `observability`, evitando ownership implícito por proyecto Compose y eliminando riesgo de borrado accidental al desplegar o bajar stacks por separado.
+
+## Scope
+
+- Marcar `infra_shared_backend` como `external` en compose local y servidor para los tres stacks.
+- Añadir bootstrap local idempotente para crear red antes de `up`.
+- Añadir bootstrap idempotente en Ansible deploy para asegurar red en host antes de `docker compose config` y `up`.
+- Actualizar runbook con nuevo contrato operacional.
+
+## Non-goals
+
+- No cambiar nombres de servicios ni rutas de NGINX.
+- No rediseñar orden de despliegue por stack.
+- No tocar redes privadas `core_backend`, `personal_backend`, `observability_backend` ni `edge`.
+
+## Likely files
+
+- `compose/projects/core/docker-compose.local.yml`
+- `compose/projects/core/docker-compose.yml`
+- `compose/projects/personal/docker-compose.local.yml`
+- `compose/projects/personal/docker-compose.yml`
+- `compose/projects/observability/docker-compose.local.yml`
+- `compose/projects/observability/docker-compose.yml`
+- `compose/scripts/ensure-shared-network.sh`
+- `compose/scripts/up-local.sh`
+- `compose/scripts/up-core.sh`
+- `ansible/inventories/production/group_vars/deploy.yml`
+- `ansible/roles/deploy/shared/tasks/main.yml`
+- `docs/runbooks/deploy.md`
+
+## Milestones
+
+1. Convert compose shared network to external
+   - Expected outcome: all stacks reference same pre-existing Docker network, with no per-project ownership.
+   - Validation: `docker compose ... config` for `core`, `personal`, `observability`.
+
+2. Add explicit network bootstrap
+   - Expected outcome: local scripts and server deploy can create shared network idempotently before stack operations.
+   - Validation: local script run and Ansible syntax-check.
+
+3. Verify stack independence
+   - Expected outcome: `down` on one stack no longer tries to remove shared network, and `nginx` still resolves shared upstreams.
+   - Validation: targeted `docker compose down/up`, `docker exec nginx wget ...`.
+
+## Risks
+
+- Existing hosts with manually created network but incompatible driver/options would still need manual cleanup.
+- If deploy bypasses `deploy/shared`, server could still miss network bootstrap.
+
+## Ready-to-implement summary
+
+Smallest safe change: mark `infra_shared_backend` external everywhere, create it explicitly in local helper scripts and shared deploy role, then validate compose rendering and per-stack independence with targeted Docker checks.
+
+---
+
+## Goal
+
+Conectar pipeline de infraestructura a `push` sobre `main` para validación y despliegue automático controlado, y corregir health/readiness de Loki alineando la configuración actual con el comportamiento estable del config anterior sin introducir refactor amplio.
+
+## Scope
+
+- Añadir trigger automático sobre `main` en workflows relevantes.
+- Mantener opción manual para rollback operacional y ejecuciones puntuales.
+- Corregir healthcheck de Loki para imagen `grafana/loki:3.6.3`, que no trae shell.
+- Ajustar `compose/configs/loki/config.yml` para single-node filesystem/retention con semántica cercana al config anterior estable.
+- Actualizar runbook/workflow docs.
+
+## Non-goals
+
+- No rediseñar bootstrap ni runtime.
+- No introducir nuevo sistema de release/tagging.
+- No migrar observability a otro backend ni cambiar Grafana/Prometheus.
+
+## Likely files
+
+- `.github/workflows/validate-infra.yml`
+- `.github/workflows/deploy-all.yml`
+- `.github/workflows/README.md`
+- `.github/DEPLOYMENT.md`
+- `compose/configs/loki/config.yml`
+- `compose/projects/observability/docker-compose.local.yml`
+- `compose/projects/observability/docker-compose.yml`
+- `docs/runbooks/deploy.md`
+
+## Milestones
+
+1. Enable auto pipeline on `main`
+   - Expected outcome: merge/push to `main` triggers validation and production deploy workflow automatically.
+   - Validation: workflow YAML syntax review and trigger inspection.
+
+2. Fix Loki health contract
+   - Expected outcome: container health no longer depends on missing `/bin/sh` and reflects HTTP readiness correctly.
+   - Validation: `docker inspect loki --format '{{json .State.Health}}'`.
+
+3. Align Loki config with known-good single-node setup
+   - Expected outcome: filesystem-backed retention config remains compatible with Loki 3.x and avoids unnecessary features.
+   - Validation: local container logs and health after recreate.
+
+## Risks
+
+- Auto deploy on every `main` push means merge discipline must stay high; failed pushes will now touch production automatically.
+- If GitHub `environment: production` requires manual approval, auto trigger will still pause there by design.
+- Loki config knobs changed across versions; over-copying old config could break 3.x expectations, so alignment must stay selective.
+
+## Ready-to-implement summary
+
+Smallest safe path: keep `deploy-all.yml` as production orchestrator, add `push: [main]` trigger, extend validation trigger similarly, replace Loki shell-based healthcheck with HTTP probe executable that exists in image, and simplify Loki config toward old filesystem single-node pattern while preserving 3.6-compatible storage schema.
+
 ## Scope
 
 - Crear el playbook `ansible/playbooks/runtime.yml`.

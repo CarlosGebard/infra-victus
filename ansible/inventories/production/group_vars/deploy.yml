@@ -1,3 +1,6 @@
+shared_docker_networks:
+  - infra_shared_backend
+
 deploy:
   core:
     name: core

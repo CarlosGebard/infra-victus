@@ -9,6 +9,22 @@
       - deploy_stack.env_path is defined
     fail_msg: "deploy_stack must be defined before including deploy/shared."
 
+- name: Check whether shared docker networks exist
+  ansible.builtin.command:
+    cmd: docker network inspect {{ item }}
+  loop: "{{ shared_docker_networks | default([]) }}"
+  register: shared_docker_network_inspect
+  changed_when: false
+  failed_when: false
+
+- name: Create missing shared docker networks
+  ansible.builtin.command:
+    cmd: docker network create {{ item.item }}
+  loop: "{{ shared_docker_network_inspect.results | default([]) }}"
+  when: item.rc != 0
+  register: shared_docker_network_create
+  changed_when: true
+
 - name: Ensure deploy directories exist
   ansible.builtin.file:
     path: "{{ item.path }}"
