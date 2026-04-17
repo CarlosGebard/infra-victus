@@ -7,6 +7,11 @@
         lookup('ansible.builtin.env', 'CERTBOT_EMAIL')
         | default(host.admin_user ~ '@' ~ (lookup('ansible.builtin.env', 'BASE_DOMAIN') | default('', true)), true)
       }}
+    core_public_domains:
+      - "seaweed.{{ lookup('ansible.builtin.env', 'BASE_DOMAIN') | default('', true) }}"
+      - "filer.{{ lookup('ansible.builtin.env', 'BASE_DOMAIN') | default('', true) }}"
+      - "s3.{{ lookup('ansible.builtin.env', 'BASE_DOMAIN') | default('', true) }}"
+      - "couchdb.{{ lookup('ansible.builtin.env', 'BASE_DOMAIN') | default('', true) }}"
 
 - name: Validate required core domain variables
   ansible.builtin.assert:
@@ -34,8 +39,8 @@
 
 - name: Check whether Seaweed TLS certificate already exists
   ansible.builtin.stat:
-    path: "/etc/letsencrypt/live/seaweed.{{ core_base_domain }}/fullchain.pem"
-  register: seaweed_tls_cert
+    path: "/etc/letsencrypt/live/{{ core_public_domains[0] }}/fullchain.pem"
+  register: core_tls_cert
 
 - name: Copy core stack compose file
   ansible.builtin.copy:
@@ -53,8 +58,11 @@
     group: root
     mode: "0644"
   vars:
-    seaweed_domain: "seaweed.{{ core_base_domain }}"
-    core_tls_enabled: "{{ seaweed_tls_cert.stat.exists }}"
+    seaweed_domain: "{{ core_public_domains[0] }}"
+    filer_domain: "{{ core_public_domains[1] }}"
+    s3_domain: "{{ core_public_domains[2] }}"
+    couchdb_domain: "{{ core_public_domains[3] }}"
+    core_tls_enabled: "{{ core_tls_cert.stat.exists }}"
 
 - name: Link active environment file into the core stack directory
   ansible.builtin.file:
@@ -82,7 +90,7 @@
       certbot certonly --non-interactive --agree-tos
       --email {{ core_certbot_email }}
       --webroot -w {{ deploy_stack.project_dir }}/nginx/acme
-      -d seaweed.{{ core_base_domain }}
+      {% for domain in core_public_domains %}-d {{ domain }} {% endfor %}
       --keep-until-expiring
   register: core_certbot_result
   changed_when: >-
@@ -92,14 +100,14 @@
 
 - name: Re-check Seaweed TLS certificate
   ansible.builtin.stat:
-    path: "/etc/letsencrypt/live/seaweed.{{ core_base_domain }}/fullchain.pem"
-  register: seaweed_tls_cert_after
+    path: "/etc/letsencrypt/live/{{ core_public_domains[0] }}/fullchain.pem"
+  register: core_tls_cert_after
 
 - name: Ensure Seaweed TLS certificate exists
   ansible.builtin.assert:
     that:
-      - seaweed_tls_cert_after.stat.exists
-    fail_msg: "Seaweed TLS certificate was not created by certbot."
+      - core_tls_cert_after.stat.exists
+    fail_msg: "Core TLS certificate was not created by certbot."
 
 - name: Render core nginx routing with TLS enabled
   ansible.builtin.template:
@@ -109,7 +117,10 @@
     group: root
     mode: "0644"
   vars:
-    seaweed_domain: "seaweed.{{ core_base_domain }}"
+    seaweed_domain: "{{ core_public_domains[0] }}"
+    filer_domain: "{{ core_public_domains[1] }}"
+    s3_domain: "{{ core_public_domains[2] }}"
+    couchdb_domain: "{{ core_public_domains[3] }}"
     core_tls_enabled: true
 
 - name: Redeploy the core stack with TLS enabled
