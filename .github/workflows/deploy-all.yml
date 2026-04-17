@@ -392,6 +392,8 @@ jobs:
 
       - name: Materialize core runtime env
         env:
+          BASE_DOMAIN: ${{ vars.BASE_DOMAIN }}
+          CERTBOT_EMAIL: ${{ vars.CERTBOT_EMAIL }}
           CORE_RUNTIME_ENV: ${{ vars.CORE_RUNTIME_ENV }}
           SEAWEED_S3_ACCESS_KEY: ${{ env.SEAWEED_S3_ACCESS_KEY }}
           SEAWEED_S3_SECRET_KEY: ${{ env.SEAWEED_S3_SECRET_KEY }}
@@ -402,10 +404,15 @@ jobs:
             printf '%s\n' "$CORE_RUNTIME_ENV" > /tmp/core-runtime.env
           else
             printf '%s\n' \
-              'NGINX_BIND_IP=127.0.0.1' \
-              'NGINX_HTTP_PORT=8080' \
+              'NGINX_BIND_IP=0.0.0.0' \
+              'NGINX_HTTP_PORT=80' \
+              'NGINX_HTTPS_BIND_IP=0.0.0.0' \
+              'NGINX_HTTPS_PORT=443' \
               > /tmp/core-runtime.env
           fi
+
+          grep -q '^NGINX_HTTPS_BIND_IP=' /tmp/core-runtime.env || printf '%s\n' 'NGINX_HTTPS_BIND_IP=0.0.0.0' >> /tmp/core-runtime.env
+          grep -q '^NGINX_HTTPS_PORT=' /tmp/core-runtime.env || printf '%s\n' 'NGINX_HTTPS_PORT=443' >> /tmp/core-runtime.env
           chmod 600 /tmp/core-runtime.env
           
           # Seaweed S3 credentials
@@ -457,6 +464,16 @@ jobs:
           [[ -f /tmp/core-runtime.env ]] || { echo "✗ Missing /tmp/core-runtime.env"; exit 1; }
           [[ -f /tmp/seaweed-s3.json ]] || { echo "✗ Missing /tmp/seaweed-s3.json"; exit 1; }
           [[ -f /tmp/deploy-hosts.yml ]] || { echo "✗ Missing /tmp/deploy-hosts.yml"; exit 1; }
+
+          nginx_bind_ip="$(grep '^NGINX_BIND_IP=' /tmp/core-runtime.env | cut -d= -f2- || true)"
+          nginx_http_port="$(grep '^NGINX_HTTP_PORT=' /tmp/core-runtime.env | cut -d= -f2- || true)"
+          nginx_https_bind_ip="$(grep '^NGINX_HTTPS_BIND_IP=' /tmp/core-runtime.env | cut -d= -f2- || true)"
+          nginx_https_port="$(grep '^NGINX_HTTPS_PORT=' /tmp/core-runtime.env | cut -d= -f2- || true)"
+
+          [[ "${nginx_bind_ip}" == "0.0.0.0" ]] || { echo "✗ NGINX_BIND_IP must be 0.0.0.0 for certbot HTTP-01"; exit 1; }
+          [[ "${nginx_http_port}" == "80" ]] || { echo "✗ NGINX_HTTP_PORT must be 80 for certbot HTTP-01"; exit 1; }
+          [[ "${nginx_https_bind_ip}" == "0.0.0.0" ]] || { echo "✗ NGINX_HTTPS_BIND_IP must be 0.0.0.0"; exit 1; }
+          [[ "${nginx_https_port}" == "443" ]] || { echo "✗ NGINX_HTTPS_PORT must be 443"; exit 1; }
           
           echo "✓ All files present"
           echo ""
@@ -467,6 +484,8 @@ jobs:
       - name: Deploy core
         env:
           ANSIBLE_HOST_KEY_CHECKING: "true"
+          BASE_DOMAIN: ${{ vars.BASE_DOMAIN }}
+          CERTBOT_EMAIL: ${{ vars.CERTBOT_EMAIL }}
           CORE_RUNTIME_ENV_SOURCE_FILE: /tmp/core-runtime.env
           CORE_RUNTIME_SEAWEED_S3_SOURCE_FILE: /tmp/seaweed-s3.json
         run: |

@@ -12,6 +12,8 @@ ssh:
 firewall:
   allowed_tcp_ports:
     - 22
+    - 80
+    - 443
 
 fail2ban:
   sshd_maxretry: 5

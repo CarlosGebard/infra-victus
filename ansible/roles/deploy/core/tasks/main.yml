@@ -1,4 +1,42 @@
 ---
+- name: Derive core domain variables
+  ansible.builtin.set_fact:
+    core_base_domain: "{{ lookup('ansible.builtin.env', 'BASE_DOMAIN') | default('', true) }}"
+    core_certbot_email: >-
+      {{
+        lookup('ansible.builtin.env', 'CERTBOT_EMAIL')
+        | default(host.admin_user ~ '@' ~ (lookup('ansible.builtin.env', 'BASE_DOMAIN') | default('', true)), true)
+      }}
+
+- name: Validate required core domain variables
+  ansible.builtin.assert:
+    that:
+      - core_base_domain | length > 0
+    fail_msg: "BASE_DOMAIN environment variable is required for core deploy."
+
+- name: Install certbot packages for core TLS
+  ansible.builtin.apt:
+    name:
+      - certbot
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Allow HTTP and HTTPS through UFW
+  ansible.builtin.command: "ufw allow {{ item }}/tcp"
+  loop:
+    - 80
+    - 443
+  register: deploy_core_ufw_allow_rule
+  changed_when: >-
+    'Rule added' in deploy_core_ufw_allow_rule.stdout or
+    'Rules updated' in deploy_core_ufw_allow_rule.stdout
+
+- name: Check whether Seaweed TLS certificate already exists
+  ansible.builtin.stat:
+    path: "/etc/letsencrypt/live/seaweed.{{ core_base_domain }}/fullchain.pem"
+  register: seaweed_tls_cert
+
 - name: Copy core stack compose file
   ansible.builtin.copy:
     src: "{{ deploy_stack.compose_src }}"
@@ -6,6 +44,17 @@
     owner: root
     group: root
     mode: "0644"
+
+- name: Render core nginx routing
+  ansible.builtin.template:
+    src: nginx-core.conf.j2
+    dest: "{{ deploy_stack.project_dir }}/nginx/conf.d/core.conf"
+    owner: root
+    group: root
+    mode: "0644"
+  vars:
+    seaweed_domain: "seaweed.{{ core_base_domain }}"
+    core_tls_enabled: "{{ seaweed_tls_cert.stat.exists }}"
 
 - name: Link active environment file into the core stack directory
   ansible.builtin.file:
@@ -26,3 +75,48 @@
     'Started' in deploy_core_up.stdout or
     'Recreated' in deploy_core_up.stdout or
     'Creating' in deploy_core_up.stdout
+
+- name: Obtain or renew Seaweed TLS certificate
+  ansible.builtin.command:
+    cmd: >-
+      certbot certonly --non-interactive --agree-tos
+      --email {{ core_certbot_email }}
+      --webroot -w {{ deploy_stack.project_dir }}/nginx/acme
+      -d seaweed.{{ core_base_domain }}
+      --keep-until-expiring
+  register: core_certbot_result
+  changed_when: >-
+    'Successfully received certificate' in core_certbot_result.stdout or
+    'Congratulations' in core_certbot_result.stdout or
+    'Certificate not yet due for renewal' not in core_certbot_result.stdout
+
+- name: Re-check Seaweed TLS certificate
+  ansible.builtin.stat:
+    path: "/etc/letsencrypt/live/seaweed.{{ core_base_domain }}/fullchain.pem"
+  register: seaweed_tls_cert_after
+
+- name: Ensure Seaweed TLS certificate exists
+  ansible.builtin.assert:
+    that:
+      - seaweed_tls_cert_after.stat.exists
+    fail_msg: "Seaweed TLS certificate was not created by certbot."
+
+- name: Render core nginx routing with TLS enabled
+  ansible.builtin.template:
+    src: nginx-core.conf.j2
+    dest: "{{ deploy_stack.project_dir }}/nginx/conf.d/core.conf"
+    owner: root
+    group: root
+    mode: "0644"
+  vars:
+    seaweed_domain: "seaweed.{{ core_base_domain }}"
+    core_tls_enabled: true
+
+- name: Redeploy the core stack with TLS enabled
+  ansible.builtin.command:
+    cmd: docker compose --env-file {{ deploy_stack.env_path }} -f {{ deploy_stack.compose_path }} up -d
+  register: deploy_core_tls_up
+  changed_when: >-
+    'Started' in deploy_core_tls_up.stdout or
+    'Recreated' in deploy_core_tls_up.stdout or
+    'Creating' in deploy_core_tls_up.stdout

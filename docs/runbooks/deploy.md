@@ -76,6 +76,13 @@ Siempre:
 
 No se requiere `PROD_SSH_USER` para flujo actual.
 
+## Variables esperadas en GitHub `production`
+
+- `BASE_DOMAIN`
+- opcional: `CERTBOT_EMAIL`
+
+Si `CERTBOT_EMAIL` no existe, deploy usa fallback `{{ host.admin_user }}@{{ BASE_DOMAIN }}`.
+
 Por stack:
 
 - `core`
@@ -102,3 +109,5 @@ make compose-validate
 `infra_shared_backend` es red Docker compartida entre stacks. Debe existir antes de cualquier `docker compose up`. Localmente, `compose/scripts/up-local.sh` y `compose/scripts/up-core.sh` la crean si falta. En servidor, `deploy/shared` la asegura antes de validar o desplegar stack.
 
 `deploy-all.yml` quedó como pipeline CD principal. En `push` a `main` corre automáticamente solo cuando cambian archivos de infraestructura. Si environment `production` exige aprobación manual en GitHub, workflow quedará pausado ahí hasta aprobar.
+
+Primer deploy TLS para `seaweed.{{ BASE_DOMAIN }}` requiere reachability pública en `80/tcp` y `443/tcp`. `core` sube primero con HTTP + challenge webroot, `certbot` emite cert, luego mismo deploy reprocesa nginx con TLS activo.

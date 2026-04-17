@@ -10,6 +10,7 @@ deploy:
     env_path: "{{ srv_secrets_root }}/runtime/core.env"
     directories:
       - { path: "{{ srv_apps_root }}/core/nginx/conf.d", mode: "0755" }
+      - { path: "{{ srv_apps_root }}/core/nginx/acme", mode: "0755" }
     staged_secret_files:
       - source_file: "{{ lookup('ansible.builtin.env', 'CORE_RUNTIME_ENV_SOURCE_FILE') | default('', true) }}"
         dest: "{{ srv_secrets_root }}/runtime/core.env"
@@ -23,10 +24,6 @@ deploy:
     config_files:
       - src: "{{ playbook_dir }}/../../compose/configs/nginx/nginx.conf"
         dest: "{{ srv_apps_root }}/core/nginx/nginx.conf"
-      - src: "{{ playbook_dir }}/../../compose/configs/nginx/conf.d/core.conf"
-        dest: "{{ srv_apps_root }}/core/nginx/conf.d/core.conf"
-      - src: "{{ playbook_dir }}/../../compose/configs/nginx/conf.d/observability.conf"
-        dest: "{{ srv_apps_root }}/core/nginx/conf.d/observability.conf"
 
   personal:
     name: personal
