@@ -12,6 +12,7 @@
       - "filer.{{ lookup('ansible.builtin.env', 'BASE_DOMAIN') | default('', true) }}"
       - "s3.{{ lookup('ansible.builtin.env', 'BASE_DOMAIN') | default('', true) }}"
       - "couchdb.{{ lookup('ansible.builtin.env', 'BASE_DOMAIN') | default('', true) }}"
+    core_cert_name: "core-edge-{{ (lookup('ansible.builtin.env', 'BASE_DOMAIN') | default('', true)) | replace('.', '-') }}"
 
 - name: Validate required core domain variables
   ansible.builtin.assert:
@@ -37,9 +38,9 @@
     'Rule added' in deploy_core_ufw_allow_rule.stdout or
     'Rules updated' in deploy_core_ufw_allow_rule.stdout
 
-- name: Check whether Seaweed TLS certificate already exists
+- name: Check whether core TLS certificate already exists
   ansible.builtin.stat:
-    path: "/etc/letsencrypt/live/{{ core_public_domains[0] }}/fullchain.pem"
+    path: "/etc/letsencrypt/live/{{ core_cert_name }}/fullchain.pem"
   register: core_tls_cert
 
 - name: Copy core stack compose file
@@ -62,6 +63,7 @@
     filer_domain: "{{ core_public_domains[1] }}"
     s3_domain: "{{ core_public_domains[2] }}"
     couchdb_domain: "{{ core_public_domains[3] }}"
+    core_cert_name: "{{ core_cert_name }}"
     core_tls_enabled: "{{ core_tls_cert.stat.exists }}"
 
 - name: Link active environment file into the core stack directory
@@ -84,11 +86,13 @@
     'Recreated' in deploy_core_up.stdout or
     'Creating' in deploy_core_up.stdout
 
-- name: Obtain or renew Seaweed TLS certificate
+- name: Obtain or renew core TLS certificate
   ansible.builtin.command:
     cmd: >-
       certbot certonly --non-interactive --agree-tos
       --email {{ core_certbot_email }}
+      --cert-name {{ core_cert_name }}
+      {% if core_tls_cert.stat.exists %}--expand{% else %}--duplicate{% endif %}
       --webroot -w {{ deploy_stack.project_dir }}/nginx/acme
       {% for domain in core_public_domains %}-d {{ domain }} {% endfor %}
       --keep-until-expiring
@@ -98,12 +102,12 @@
     'Congratulations' in core_certbot_result.stdout or
     'Certificate not yet due for renewal' not in core_certbot_result.stdout
 
-- name: Re-check Seaweed TLS certificate
+- name: Re-check core TLS certificate
   ansible.builtin.stat:
-    path: "/etc/letsencrypt/live/{{ core_public_domains[0] }}/fullchain.pem"
+    path: "/etc/letsencrypt/live/{{ core_cert_name }}/fullchain.pem"
   register: core_tls_cert_after
 
-- name: Ensure Seaweed TLS certificate exists
+- name: Ensure core TLS certificate exists
   ansible.builtin.assert:
     that:
       - core_tls_cert_after.stat.exists
@@ -121,6 +125,7 @@
     filer_domain: "{{ core_public_domains[1] }}"
     s3_domain: "{{ core_public_domains[2] }}"
     couchdb_domain: "{{ core_public_domains[3] }}"
+    core_cert_name: "{{ core_cert_name }}"
     core_tls_enabled: true
 
 - name: Redeploy the core stack with TLS enabled
