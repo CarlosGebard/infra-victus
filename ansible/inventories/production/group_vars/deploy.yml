@@ -8,6 +8,9 @@ deploy:
     compose_src: "{{ playbook_dir }}/../../compose/projects/core/docker-compose.yml"
     compose_path: "{{ srv_apps_root }}/core/docker-compose.yml"
     env_path: "{{ srv_secrets_root }}/runtime/core.env"
+    compose_services:
+      - nginx
+      - seaweedfs
     directories:
       - { path: "{{ srv_apps_root }}/core/nginx/conf.d", mode: "0755" }
       - { path: "{{ srv_apps_root }}/core/nginx/acme", mode: "0755" }
@@ -15,15 +18,22 @@ deploy:
       - source_file: "{{ lookup('ansible.builtin.env', 'CORE_RUNTIME_ENV_SOURCE_FILE') | default('', true) }}"
         dest: "{{ srv_secrets_root }}/runtime/core.env"
         mode: "0600"
+        recreate_services:
+          - nginx
+          - seaweedfs
       - source_file: "{{ lookup('ansible.builtin.env', 'CORE_RUNTIME_SEAWEED_S3_SOURCE_FILE') | default('', true) }}"
         dest: "{{ srv_secrets_root }}/runtime/seaweed-s3.json"
         mode: "0600"
+        recreate_services:
+          - seaweedfs
     required_files:
       - "{{ srv_secrets_root }}/runtime/core.env"
       - "{{ srv_secrets_root }}/runtime/seaweed-s3.json"
     config_files:
       - src: "{{ playbook_dir }}/../../compose/configs/nginx/nginx.conf"
         dest: "{{ srv_apps_root }}/core/nginx/nginx.conf"
+        restart_services:
+          - nginx
 
   personal:
     name: personal
@@ -31,17 +41,23 @@ deploy:
     compose_src: "{{ playbook_dir }}/../../compose/projects/personal/docker-compose.yml"
     compose_path: "{{ srv_apps_root }}/personal/docker-compose.yml"
     env_path: "{{ srv_secrets_root }}/runtime/personal.env"
+    compose_services:
+      - couchdb
     directories:
       - { path: "{{ srv_apps_root }}/personal/couchdb/local.d", mode: "0755" }
     staged_secret_files:
       - source_file: "{{ lookup('ansible.builtin.env', 'PERSONAL_RUNTIME_ENV_SOURCE_FILE') | default('', true) }}"
         dest: "{{ srv_secrets_root }}/runtime/personal.env"
         mode: "0600"
+        recreate_services:
+          - couchdb
     required_files:
       - "{{ srv_secrets_root }}/runtime/personal.env"
     config_files:
       - src: "{{ playbook_dir }}/../../compose/configs/couchdb/local.d/local.ini"
         dest: "{{ srv_apps_root }}/personal/couchdb/local.d/local.ini"
+        restart_services:
+          - couchdb
 
   observability:
     name: observability
@@ -49,6 +65,10 @@ deploy:
     compose_src: "{{ playbook_dir }}/../../compose/projects/observability/docker-compose.yml"
     compose_path: "{{ srv_apps_root }}/observability/docker-compose.yml"
     env_path: "{{ srv_secrets_root }}/runtime/observability.env"
+    compose_services:
+      - loki
+      - prometheus
+      - grafana
     directories:
       - { path: "{{ srv_apps_root }}/observability/loki", mode: "0755" }
       - { path: "{{ srv_apps_root }}/observability/prometheus", mode: "0755" }
@@ -58,10 +78,18 @@ deploy:
       - source_file: "{{ lookup('ansible.builtin.env', 'OBSERVABILITY_RUNTIME_ENV_SOURCE_FILE') | default('', true) }}"
         dest: "{{ srv_secrets_root }}/runtime/observability.env"
         mode: "0600"
+        recreate_services:
+          - loki
+          - prometheus
+          - grafana
     required_files:
       - "{{ srv_secrets_root }}/runtime/observability.env"
     config_files:
       - src: "{{ playbook_dir }}/../../compose/configs/loki/config.yml"
         dest: "{{ srv_apps_root }}/observability/loki/config.yml"
+        restart_services:
+          - loki
       - src: "{{ playbook_dir }}/../../compose/configs/prometheus/prometheus.yml"
         dest: "{{ srv_apps_root }}/observability/prometheus/prometheus.yml"
+        restart_services:
+          - prometheus

@@ -17,8 +17,7 @@ server {
   }
 
   location = / {
-    default_type text/plain;
-    return 200 "infra-macro-vps core gateway\n";
+    return 404;
   }
 
   location /couchdb/ {
@@ -27,21 +26,37 @@ server {
   }
 
   location /seaweed/master/ {
+    allow 127.0.0.1;
+    allow 100.64.0.0/10;
+    allow fd7a:115c:a1e0::/48;
+    deny all;
     set $upstream seaweedfs:9333;
     proxy_pass http://$upstream/;
   }
 
   location /seaweed/filer/ {
+    allow 127.0.0.1;
+    allow 100.64.0.0/10;
+    allow fd7a:115c:a1e0::/48;
+    deny all;
     set $upstream seaweedfs:8888;
     proxy_pass http://$upstream/;
   }
 
   location /seaweed/s3/ {
+    allow 127.0.0.1;
+    allow 100.64.0.0/10;
+    allow fd7a:115c:a1e0::/48;
+    deny all;
     set $upstream seaweedfs:8333;
     proxy_pass http://$upstream/;
   }
 
   location /grafana/ {
+    allow 127.0.0.1;
+    allow 100.64.0.0/10;
+    allow fd7a:115c:a1e0::/48;
+    deny all;
     proxy_set_header X-Forwarded-Host $host;
     proxy_set_header X-Forwarded-Prefix /grafana;
     set $upstream grafana:3000;
@@ -49,11 +64,19 @@ server {
   }
 
   location /prometheus/ {
+    allow 127.0.0.1;
+    allow 100.64.0.0/10;
+    allow fd7a:115c:a1e0::/48;
+    deny all;
     set $upstream prometheus:9090;
     proxy_pass http://$upstream/;
   }
 
   location /loki/ {
+    allow 127.0.0.1;
+    allow 100.64.0.0/10;
+    allow fd7a:115c:a1e0::/48;
+    deny all;
     set $upstream loki:3100;
     proxy_pass http://$upstream/;
   }
@@ -73,10 +96,18 @@ server {
 
 {% if core_tls_enabled | bool %}
   location / {
+    allow 127.0.0.1;
+    allow 100.64.0.0/10;
+    allow fd7a:115c:a1e0::/48;
+    deny all;
     return 301 https://$host$request_uri;
   }
 {% else %}
   location / {
+    allow 127.0.0.1;
+    allow 100.64.0.0/10;
+    allow fd7a:115c:a1e0::/48;
+    deny all;
     set $upstream seaweedfs:9333;
     proxy_pass http://$upstream;
   }
@@ -97,10 +128,18 @@ server {
 
 {% if core_tls_enabled | bool %}
   location / {
+    allow 127.0.0.1;
+    allow 100.64.0.0/10;
+    allow fd7a:115c:a1e0::/48;
+    deny all;
     return 301 https://$host$request_uri;
   }
 {% else %}
   location / {
+    allow 127.0.0.1;
+    allow 100.64.0.0/10;
+    allow fd7a:115c:a1e0::/48;
+    deny all;
     set $upstream seaweedfs:8888;
     proxy_pass http://$upstream;
   }
@@ -121,10 +160,18 @@ server {
 
 {% if core_tls_enabled | bool %}
   location / {
+    allow 127.0.0.1;
+    allow 100.64.0.0/10;
+    allow fd7a:115c:a1e0::/48;
+    deny all;
     return 301 https://$host$request_uri;
   }
 {% else %}
   location / {
+    allow 127.0.0.1;
+    allow 100.64.0.0/10;
+    allow fd7a:115c:a1e0::/48;
+    deny all;
     set $upstream seaweedfs:8333;
     proxy_pass http://$upstream;
   }
@@ -171,6 +218,10 @@ server {
   ssl_prefer_server_ciphers off;
 
   location / {
+    allow 127.0.0.1;
+    allow 100.64.0.0/10;
+    allow fd7a:115c:a1e0::/48;
+    deny all;
     set $upstream seaweedfs:9333;
     proxy_pass http://$upstream;
   }
@@ -191,6 +242,10 @@ server {
   ssl_prefer_server_ciphers off;
 
   location / {
+    allow 127.0.0.1;
+    allow 100.64.0.0/10;
+    allow fd7a:115c:a1e0::/48;
+    deny all;
     set $upstream seaweedfs:8888;
     proxy_pass http://$upstream;
   }
@@ -211,6 +266,10 @@ server {
   ssl_prefer_server_ciphers off;
 
   location / {
+    allow 127.0.0.1;
+    allow 100.64.0.0/10;
+    allow fd7a:115c:a1e0::/48;
+    deny all;
     set $upstream seaweedfs:8333;
     proxy_pass http://$upstream;
   }

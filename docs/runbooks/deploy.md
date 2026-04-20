@@ -102,6 +102,48 @@ make ansible-check
 make compose-validate
 ```
 
+## Reinicio y recreate automáticos
+
+Deploy no hace `down/up` global. Aplica acciones puntuales por stack según tipo de cambio:
+
+- cambio en archivo de config montado por bind mount
+  - corre `docker compose restart` solo para servicios afectados
+- cambio en secreto staged, `docker-compose.yml` o `.env` enlazado
+  - corre `docker compose up -d --force-recreate` solo para servicios afectados
+
+Mapa actual:
+
+- `core`
+  - `nginx.conf` o `nginx/conf.d/core.conf` -> restart `nginx`
+  - `core.env` -> recreate `nginx`, `seaweedfs`
+  - `seaweed-s3.json` -> recreate `seaweedfs`
+- `personal`
+  - `local.ini` -> restart `couchdb`
+  - `personal.env` -> recreate `couchdb`
+- `observability`
+  - `loki/config.yml` -> restart `loki`
+  - `prometheus/prometheus.yml` -> restart `prometheus`
+  - `observability.env` -> recreate `loki`, `prometheus`, `grafana`
+
+Razón:
+
+- `docker compose up -d` no siempre reinicia contenedor cuando cambia archivo montado desde host
+- secretos o variables de entorno deben entrar al proceso al crear contenedor otra vez
+- reinicio/recreate dirigido reduce churn y downtime frente a recrear stack completo
+
+## Exposición pública
+
+Política actual de edge:
+
+- `couchdb.{{ BASE_DOMAIN }}` queda público por NGINX
+- rutas `/seaweed/master/`, `/seaweed/filer/`, `/seaweed/s3/`, `/grafana/`, `/prometheus/`, `/loki/` solo aceptan origen Tailscale
+- server blocks `seaweed.*`, `filer.*`, `s3.*` también quedan restringidos a rangos Tailscale `100.64.0.0/10` y `fd7a:115c:a1e0::/48`
+
+Nota:
+
+- acceso privado esperado para servicios no públicos: entrar por IP o hostname Tailscale del VPS y usar rutas proxy de NGINX
+- path `/.well-known/acme-challenge/` sigue público para certbot HTTP-01
+
 ## Nota operacional
 
 `core` despliega la config edge de NGINX. Esa config referencia `couchdb`, `grafana`, `prometheus` y `loki`, así que no conviene desplegar `core` primero.

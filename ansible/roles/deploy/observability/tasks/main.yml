@@ -6,12 +6,37 @@
     owner: root
     group: root
     mode: "0644"
+  register: deploy_observability_compose_copy
 
 - name: Link active environment file into the observability stack directory
   ansible.builtin.file:
     src: "{{ deploy_stack.env_path }}"
     dest: "{{ deploy_stack.project_dir }}/.env"
     state: link
+  register: deploy_observability_env_link
+
+- name: Derive observability runtime actions
+  ansible.builtin.set_fact:
+    deploy_observability_recreate_services: >-
+      {{
+        (
+          deploy_recreate_services | default([])
+          + (
+            deploy_stack.compose_services | default([])
+            if deploy_observability_compose_copy.changed or deploy_observability_env_link.changed
+            else []
+          )
+        ) | unique
+      }}
+
+- name: Derive observability config-only restarts
+  ansible.builtin.set_fact:
+    deploy_observability_restart_services: >-
+      {{
+        (
+          deploy_restart_services | default([])
+        ) | difference(deploy_observability_recreate_services | default([]))
+      }}
 
 - name: Validate rendered observability Compose configuration
   ansible.builtin.command:
@@ -26,3 +51,26 @@
     'Started' in deploy_observability_up.stdout or
     'Recreated' in deploy_observability_up.stdout or
     'Creating' in deploy_observability_up.stdout
+
+- name: Force recreate observability services with runtime definition changes
+  ansible.builtin.command:
+    cmd: >-
+      docker compose --env-file {{ deploy_stack.env_path }}
+      -f {{ deploy_stack.compose_path }}
+      up -d --force-recreate {{ deploy_observability_recreate_services | join(' ') }}
+  when: deploy_observability_recreate_services | length > 0
+  register: deploy_observability_force_recreate
+  changed_when: >-
+    'Started' in deploy_observability_force_recreate.stdout or
+    'Recreated' in deploy_observability_force_recreate.stdout or
+    'Creating' in deploy_observability_force_recreate.stdout
+
+- name: Restart observability services with config-only changes
+  ansible.builtin.command:
+    cmd: >-
+      docker compose --env-file {{ deploy_stack.env_path }}
+      -f {{ deploy_stack.compose_path }}
+      restart {{ deploy_observability_restart_services | join(' ') }}
+  when: deploy_observability_restart_services | length > 0
+  register: deploy_observability_restart
+  changed_when: deploy_observability_restart_services | length > 0

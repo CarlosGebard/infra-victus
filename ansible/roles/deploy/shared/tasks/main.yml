@@ -43,6 +43,7 @@
     mode: "{{ item.mode | default('0600') }}"
   loop: "{{ deploy_stack.staged_secret_files | default([]) }}"
   when: item.source_file | default('') | length > 0
+  register: deploy_shared_secret_copy
 
 - name: Check whether required deploy files exist
   ansible.builtin.stat:
@@ -71,3 +72,43 @@
     group: root
     mode: "{{ item.mode | default('0644') }}"
   loop: "{{ deploy_stack.config_files | default([]) }}"
+  register: deploy_shared_config_copy
+
+- name: Derive deploy change targets from copied files
+  ansible.builtin.set_fact:
+    deploy_changed_secret_files: >-
+      {{
+        deploy_shared_secret_copy.results | default([])
+        | selectattr('changed')
+        | map(attribute='item.dest')
+        | list
+      }}
+    deploy_changed_config_files: >-
+      {{
+        deploy_shared_config_copy.results | default([])
+        | selectattr('changed')
+        | map(attribute='item.dest')
+        | list
+      }}
+    deploy_recreate_services: >-
+      {{
+        (
+          deploy_shared_secret_copy.results | default([])
+          | selectattr('changed')
+          | map(attribute='item.recreate_services')
+          | select('defined')
+          | list
+          | flatten
+        ) | unique
+      }}
+    deploy_restart_services: >-
+      {{
+        (
+          deploy_shared_config_copy.results | default([])
+          | selectattr('changed')
+          | map(attribute='item.restart_services')
+          | select('defined')
+          | list
+          | flatten
+        ) | unique
+      }}

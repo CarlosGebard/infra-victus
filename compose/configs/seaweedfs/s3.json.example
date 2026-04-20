@@ -1,7 +1,7 @@
 {
   "identities": [
     {
-      "name": "infra-local",
+      "name": "main",
       "credentials": [
         {
           "accessKey": "change-me",
@@ -11,6 +11,7 @@
       "actions": [
         "Admin",
         "Read",
+        "Tagging",
         "Write",
         "List"
       ]

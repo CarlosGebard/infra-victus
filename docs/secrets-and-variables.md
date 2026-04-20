@@ -76,6 +76,31 @@ Workflow construye `/tmp/seaweed-s3.json` desde:
 - `SEAWEED_S3_ACCESS_KEY`
 - `SEAWEED_S3_SECRET_KEY`
 
+Contrato actual:
+
+```json
+{
+  "identities": [
+    {
+      "name": "main",
+      "credentials": [
+        {
+          "accessKey": "SEAWEED_S3_ACCESS_KEY",
+          "secretKey": "SEAWEED_S3_SECRET_KEY"
+        }
+      ],
+      "actions": [
+        "Admin",
+        "Read",
+        "Tagging",
+        "Write",
+        "List"
+      ]
+    }
+  ]
+}
+```
+
 ### `personal`
 
 Workflow construye `.env` desde:

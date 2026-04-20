@@ -50,6 +50,7 @@
     owner: root
     group: root
     mode: "0644"
+  register: deploy_core_compose_copy
 
 - name: Render core nginx routing
   ansible.builtin.template:
@@ -65,12 +66,14 @@
     couchdb_domain: "{{ core_public_domains[3] }}"
     core_cert_name: "{{ core_cert_name }}"
     core_tls_enabled: "{{ core_tls_cert.stat.exists }}"
+  register: deploy_core_nginx_template_pre_tls
 
 - name: Link active environment file into the core stack directory
   ansible.builtin.file:
     src: "{{ deploy_stack.env_path }}"
     dest: "{{ deploy_stack.project_dir }}/.env"
     state: link
+  register: deploy_core_env_link
 
 - name: Validate rendered core Compose configuration
   ansible.builtin.command:
@@ -127,6 +130,7 @@
     couchdb_domain: "{{ core_public_domains[3] }}"
     core_cert_name: "{{ core_cert_name }}"
     core_tls_enabled: true
+  register: deploy_core_nginx_template_tls
 
 - name: Redeploy the core stack with TLS enabled
   ansible.builtin.command:
@@ -136,3 +140,54 @@
     'Started' in deploy_core_tls_up.stdout or
     'Recreated' in deploy_core_tls_up.stdout or
     'Creating' in deploy_core_tls_up.stdout
+
+- name: Derive core runtime actions
+  ansible.builtin.set_fact:
+    deploy_core_recreate_services: >-
+      {{
+        (
+          deploy_recreate_services | default([])
+          + (
+            deploy_stack.compose_services | default([])
+            if deploy_core_compose_copy.changed or deploy_core_env_link.changed
+            else []
+          )
+        ) | unique
+      }}
+
+- name: Derive core config-only restarts
+  ansible.builtin.set_fact:
+    deploy_core_restart_services: >-
+      {{
+        (
+          deploy_restart_services | default([])
+          + (
+            ['nginx']
+            if deploy_core_nginx_template_pre_tls.changed or deploy_core_nginx_template_tls.changed
+            else []
+          )
+        ) | unique | difference(deploy_core_recreate_services | default([]))
+      }}
+
+- name: Force recreate core services with runtime definition changes
+  ansible.builtin.command:
+    cmd: >-
+      docker compose --env-file {{ deploy_stack.env_path }}
+      -f {{ deploy_stack.compose_path }}
+      up -d --force-recreate {{ deploy_core_recreate_services | join(' ') }}
+  when: deploy_core_recreate_services | length > 0
+  register: deploy_core_force_recreate
+  changed_when: >-
+    'Started' in deploy_core_force_recreate.stdout or
+    'Recreated' in deploy_core_force_recreate.stdout or
+    'Creating' in deploy_core_force_recreate.stdout
+
+- name: Restart core services with config-only changes
+  ansible.builtin.command:
+    cmd: >-
+      docker compose --env-file {{ deploy_stack.env_path }}
+      -f {{ deploy_stack.compose_path }}
+      restart {{ deploy_core_restart_services | join(' ') }}
+  when: deploy_core_restart_services | length > 0
+  register: deploy_core_restart
+  changed_when: deploy_core_restart_services | length > 0
