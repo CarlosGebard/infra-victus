@@ -43,15 +43,6 @@ server {
     proxy_pass http://$upstream/;
   }
 
-  location /seaweed/s3/ {
-    allow 127.0.0.1;
-    allow 100.64.0.0/10;
-    allow fd7a:115c:a1e0::/48;
-    deny all;
-    set $upstream seaweedfs:8333;
-    proxy_pass http://$upstream/;
-  }
-
   location /grafana/ {
     allow 127.0.0.1;
     allow 100.64.0.0/10;
@@ -172,6 +163,7 @@ server {
     allow 100.64.0.0/10;
     allow fd7a:115c:a1e0::/48;
     deny all;
+    proxy_set_header Host $host;
     set $upstream seaweedfs:8333;
     proxy_pass http://$upstream;
   }
@@ -270,6 +262,7 @@ server {
     allow 100.64.0.0/10;
     allow fd7a:115c:a1e0::/48;
     deny all;
+    proxy_set_header Host $host;
     set $upstream seaweedfs:8333;
     proxy_pass http://$upstream;
   }

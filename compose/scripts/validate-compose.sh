@@ -59,6 +59,15 @@ validate_nginx() {
 		nginx:1.28.3-alpine nginx -t
 }
 
+validate_seaweed_s3_config() {
+	local s3_config="$ROOT_DIR/compose/configs/seaweedfs/s3.json.example"
+
+	require_file "$s3_config"
+
+	log "Validating SeaweedFS S3 config example"
+	python3 -m json.tool "$s3_config" >/dev/null
+}
+
 validate_required_dirs() {
 	local dirs=(
 		"$ROOT_DIR/compose/.tmp/core/nginx/logs"
@@ -75,10 +84,12 @@ validate_required_dirs() {
 }
 
 require_cmd docker
+require_cmd python3
 validate_stack personal
 validate_stack core
 validate_stack observability
 validate_required_dirs
+validate_seaweed_s3_config
 validate_nginx
 
 log "Local validation OK"

@@ -95,6 +95,28 @@ Por stack:
 - `observability`
   - `GRAFANA_ADMIN_PASSWORD`
 
+## Estado actual de SeaweedFS
+
+Deploy de `core` sí deja listo el runtime S3 de SeaweedFS:
+
+- monta `seaweed-s3.json` en `/srv/secrets/runtime/seaweed-s3.json`
+- fuerza ownership `1000:1000`
+- fuerza modo `0400`
+- valida que el archivo sea JSON válido antes de correr `docker compose up`
+- exige al menos una credencial con `accessKey` y `secretKey`
+
+Lo que todavía no hace el repo:
+
+- no crea buckets automáticamente
+- no versiona una lista declarativa de buckets
+- no aplica políticas por bucket desde Ansible
+
+Implicancia operativa:
+
+- hoy la IaC configura autenticación S3, no aprovisionamiento de buckets
+- si un servicio necesita buckets precreados, hay que crearlos explícitamente después del deploy usando un cliente S3 compatible o una automatización aparte
+- si `seaweedfs` no arranca, revisar primero `/srv/secrets/runtime/seaweed-s3.json`; credencial faltante, JSON inválido o permisos distintos de `1000:1000` y `0400` deben tratarse como error de deploy
+
 ## Validación mínima antes de push
 
 ```bash

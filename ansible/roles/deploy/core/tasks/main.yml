@@ -75,6 +75,62 @@
     state: link
   register: deploy_core_env_link
 
+- name: Enforce SeaweedFS S3 runtime config permissions
+  ansible.builtin.file:
+    path: "{{ srv_secrets_root }}/runtime/seaweed-s3.json"
+    owner: "1000"
+    group: "1000"
+    mode: "0400"
+  register: deploy_core_seaweed_s3_permissions
+
+- name: Read SeaweedFS S3 runtime config metadata
+  ansible.builtin.stat:
+    path: "{{ srv_secrets_root }}/runtime/seaweed-s3.json"
+  register: deploy_core_seaweed_s3_stat
+
+- name: Validate SeaweedFS S3 runtime config permissions
+  ansible.builtin.assert:
+    that:
+      - deploy_core_seaweed_s3_stat.stat.exists
+      - deploy_core_seaweed_s3_stat.stat.uid == 1000
+      - deploy_core_seaweed_s3_stat.stat.gid == 1000
+      - deploy_core_seaweed_s3_stat.stat.mode == '0400'
+    fail_msg: >-
+      SeaweedFS runtime config at {{ srv_secrets_root }}/runtime/seaweed-s3.json
+      must be owned by 1000:1000 with mode 0400 before container start.
+
+- name: Validate SeaweedFS S3 runtime config is valid JSON
+  ansible.builtin.command:
+    cmd: python3 -m json.tool {{ srv_secrets_root }}/runtime/seaweed-s3.json
+  changed_when: false
+
+- name: Read SeaweedFS S3 runtime config
+  ansible.builtin.slurp:
+    path: "{{ srv_secrets_root }}/runtime/seaweed-s3.json"
+  register: deploy_core_seaweed_s3_config_raw
+
+- name: Validate SeaweedFS S3 runtime config structure
+  ansible.builtin.assert:
+    that:
+      - deploy_core_seaweed_s3_config.identities is defined
+      - deploy_core_seaweed_s3_config.identities | length > 0
+      - deploy_core_seaweed_s3_credentials | length > 0
+      - deploy_core_seaweed_s3_credentials | selectattr('accessKey', 'defined') | list | length > 0
+      - deploy_core_seaweed_s3_credentials | selectattr('secretKey', 'defined') | list | length > 0
+    fail_msg: >-
+      SeaweedFS runtime config at {{ srv_secrets_root }}/runtime/seaweed-s3.json
+      must define at least one identity with accessKey and secretKey.
+  vars:
+    deploy_core_seaweed_s3_config: "{{ deploy_core_seaweed_s3_config_raw.content | b64decode | from_json }}"
+    deploy_core_seaweed_s3_credentials: >-
+      {{
+        deploy_core_seaweed_s3_config.identities
+        | map(attribute='credentials')
+        | select('defined')
+        | list
+        | flatten
+      }}
+
 - name: Validate rendered core Compose configuration
   ansible.builtin.command:
     cmd: docker compose --env-file {{ deploy_stack.env_path }} -f {{ deploy_stack.compose_path }} config
@@ -147,6 +203,11 @@
       {{
         (
           deploy_recreate_services | default([])
+          + (
+            ['seaweedfs']
+            if deploy_core_seaweed_s3_permissions.changed
+            else []
+          )
           + (
             deploy_stack.compose_services | default([])
             if deploy_core_compose_copy.changed or deploy_core_env_link.changed
