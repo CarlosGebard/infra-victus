@@ -158,6 +158,9 @@ Política actual de edge:
 Nota:
 
 - acceso privado esperado para servicios no públicos: entrar por IP o hostname Tailscale del VPS y usar rutas proxy de NGINX
+- acceso S3 path-style soportado para setup pequeño: `http://<magicdns-host>/seaweed/s3/`
+- ejemplo AWS CLI: `aws --endpoint-url http://<magicdns-host>/seaweed/s3 s3 ls`
+- algunos clientes S3 avanzados o URLs prefirmadas siguen siendo más compatibles con hostname dedicado al root en vez de path prefix
 - path `/.well-known/acme-challenge/` sigue público para certbot HTTP-01
 
 ## Nota operacional

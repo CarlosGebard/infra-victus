@@ -38,6 +38,13 @@ server {
     proxy_pass http://$upstream/;
   }
 
+  location /seaweed/s3/ {
+    include /etc/nginx/snippets/private-access.conf;
+    proxy_set_header Host $host;
+    set $upstream seaweedfs:8333;
+    proxy_pass http://$upstream/;
+  }
+
   location /grafana/ {
     include /etc/nginx/snippets/private-access.conf;
     proxy_set_header X-Forwarded-Host $host;
