@@ -1,0 +1,5 @@
+services:
+  couchdb:
+    volumes:
+      - /srv/data/couchdb/data:/opt/couchdb/data
+      - /srv/apps/personal/couchdb/local.d/local.ini:/opt/couchdb/etc/local.d/local.ini:ro

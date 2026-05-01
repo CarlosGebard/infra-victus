@@ -1,7 +1,0 @@
-tailscale_enabled: true
-tailscale_auth_key: "{{ lookup('ansible.builtin.env', 'TAILSCALE_AUTH_KEY') | default('', true) }}"
-tailscale_advertise_tags:
-  - tag:vps
-tailscale_enable_ssh: false
-tailscale_hostname: infra-victus-vps
-tailscale_args_extra: ""

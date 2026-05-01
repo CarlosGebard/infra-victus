@@ -21,33 +21,25 @@ server {
   }
 
   location /couchdb/ {
+    include /etc/nginx/snippets/private-access.conf;
     set $upstream couchdb:5984;
     proxy_pass http://$upstream/;
   }
 
   location /seaweed/master/ {
-    allow 127.0.0.1;
-    allow 100.64.0.0/10;
-    allow fd7a:115c:a1e0::/48;
-    deny all;
+    include /etc/nginx/snippets/private-access.conf;
     set $upstream seaweedfs:9333;
     proxy_pass http://$upstream/;
   }
 
   location /seaweed/filer/ {
-    allow 127.0.0.1;
-    allow 100.64.0.0/10;
-    allow fd7a:115c:a1e0::/48;
-    deny all;
+    include /etc/nginx/snippets/private-access.conf;
     set $upstream seaweedfs:8888;
     proxy_pass http://$upstream/;
   }
 
   location /grafana/ {
-    allow 127.0.0.1;
-    allow 100.64.0.0/10;
-    allow fd7a:115c:a1e0::/48;
-    deny all;
+    include /etc/nginx/snippets/private-access.conf;
     proxy_set_header X-Forwarded-Host $host;
     proxy_set_header X-Forwarded-Prefix /grafana;
     set $upstream grafana:3000;
@@ -55,19 +47,13 @@ server {
   }
 
   location /prometheus/ {
-    allow 127.0.0.1;
-    allow 100.64.0.0/10;
-    allow fd7a:115c:a1e0::/48;
-    deny all;
+    include /etc/nginx/snippets/private-access.conf;
     set $upstream prometheus:9090;
     proxy_pass http://$upstream/;
   }
 
   location /loki/ {
-    allow 127.0.0.1;
-    allow 100.64.0.0/10;
-    allow fd7a:115c:a1e0::/48;
-    deny all;
+    include /etc/nginx/snippets/private-access.conf;
     set $upstream loki:3100;
     proxy_pass http://$upstream/;
   }
@@ -87,18 +73,12 @@ server {
 
 {% if core_tls_enabled | bool %}
   location / {
-    allow 127.0.0.1;
-    allow 100.64.0.0/10;
-    allow fd7a:115c:a1e0::/48;
-    deny all;
+    include /etc/nginx/snippets/private-access.conf;
     return 301 https://$host$request_uri;
   }
 {% else %}
   location / {
-    allow 127.0.0.1;
-    allow 100.64.0.0/10;
-    allow fd7a:115c:a1e0::/48;
-    deny all;
+    include /etc/nginx/snippets/private-access.conf;
     set $upstream seaweedfs:9333;
     proxy_pass http://$upstream;
   }
@@ -119,18 +99,12 @@ server {
 
 {% if core_tls_enabled | bool %}
   location / {
-    allow 127.0.0.1;
-    allow 100.64.0.0/10;
-    allow fd7a:115c:a1e0::/48;
-    deny all;
+    include /etc/nginx/snippets/private-access.conf;
     return 301 https://$host$request_uri;
   }
 {% else %}
   location / {
-    allow 127.0.0.1;
-    allow 100.64.0.0/10;
-    allow fd7a:115c:a1e0::/48;
-    deny all;
+    include /etc/nginx/snippets/private-access.conf;
     set $upstream seaweedfs:8888;
     proxy_pass http://$upstream;
   }
@@ -151,18 +125,12 @@ server {
 
 {% if core_tls_enabled | bool %}
   location / {
-    allow 127.0.0.1;
-    allow 100.64.0.0/10;
-    allow fd7a:115c:a1e0::/48;
-    deny all;
+    include /etc/nginx/snippets/private-access.conf;
     return 301 https://$host$request_uri;
   }
 {% else %}
   location / {
-    allow 127.0.0.1;
-    allow 100.64.0.0/10;
-    allow fd7a:115c:a1e0::/48;
-    deny all;
+    include /etc/nginx/snippets/private-access.conf;
     proxy_set_header Host $host;
     set $upstream seaweedfs:8333;
     proxy_pass http://$upstream;
@@ -184,10 +152,12 @@ server {
 
 {% if core_tls_enabled | bool %}
   location / {
+    include /etc/nginx/snippets/private-access.conf;
     return 301 https://$host$request_uri;
   }
 {% else %}
   location / {
+    include /etc/nginx/snippets/private-access.conf;
     set $upstream couchdb:5984;
     proxy_pass http://$upstream;
   }
@@ -210,10 +180,7 @@ server {
   ssl_prefer_server_ciphers off;
 
   location / {
-    allow 127.0.0.1;
-    allow 100.64.0.0/10;
-    allow fd7a:115c:a1e0::/48;
-    deny all;
+    include /etc/nginx/snippets/private-access.conf;
     set $upstream seaweedfs:9333;
     proxy_pass http://$upstream;
   }
@@ -234,10 +201,7 @@ server {
   ssl_prefer_server_ciphers off;
 
   location / {
-    allow 127.0.0.1;
-    allow 100.64.0.0/10;
-    allow fd7a:115c:a1e0::/48;
-    deny all;
+    include /etc/nginx/snippets/private-access.conf;
     set $upstream seaweedfs:8888;
     proxy_pass http://$upstream;
   }
@@ -258,10 +222,7 @@ server {
   ssl_prefer_server_ciphers off;
 
   location / {
-    allow 127.0.0.1;
-    allow 100.64.0.0/10;
-    allow fd7a:115c:a1e0::/48;
-    deny all;
+    include /etc/nginx/snippets/private-access.conf;
     proxy_set_header Host $host;
     set $upstream seaweedfs:8333;
     proxy_pass http://$upstream;
@@ -283,6 +244,7 @@ server {
   ssl_prefer_server_ciphers off;
 
   location / {
+    include /etc/nginx/snippets/private-access.conf;
     set $upstream couchdb:5984;
     proxy_pass http://$upstream;
   }

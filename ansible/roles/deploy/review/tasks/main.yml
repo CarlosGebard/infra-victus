@@ -1,0 +1,53 @@
+---
+- name: Check shared Docker networks exist
+  ansible.builtin.command:
+    cmd: docker network inspect {{ item }}
+  loop: "{{ shared_docker_networks | default([]) }}"
+  changed_when: false
+
+- name: Check required runtime files exist for all stacks
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop: >-
+    {{
+      deploy
+      | dict2items
+      | map(attribute='value.required_files')
+      | select('defined')
+      | list
+      | flatten
+      | unique
+    }}
+  register: deploy_review_required_files
+
+- name: Assert required runtime files exist for all stacks
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists
+    fail_msg: "Missing runtime file after deploy: {{ item.item }}"
+  loop: "{{ deploy_review_required_files.results }}"
+
+- name: Check expected containers are running
+  ansible.builtin.command:
+    cmd: docker inspect -f {{ '{{.State.Running}}' }} {{ item }}
+  loop: >-
+    {{
+      deploy
+      | dict2items
+      | map(attribute='value.compose_services')
+      | select('defined')
+      | list
+      | flatten
+      | unique
+    }}
+  register: deploy_review_container_states
+  changed_when: false
+  failed_when: false
+
+- name: Assert expected containers are running
+  ansible.builtin.assert:
+    that:
+      - item.rc == 0
+      - item.stdout == 'true'
+    fail_msg: "Container not running after deploy: {{ item.item }}"
+  loop: "{{ deploy_review_container_states.results }}"

@@ -1,0 +1,55 @@
+---
+- name: Verify Docker available
+  ansible.builtin.command:
+    cmd: docker --version
+  changed_when: false
+
+- name: Verify Docker Compose available
+  ansible.builtin.command:
+    cmd: docker compose version
+  changed_when: false
+
+- name: Verify required base directories exist
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - "{{ srv_root }}"
+    - "{{ srv_apps_root }}"
+    - "{{ srv_data_root }}"
+    - "{{ srv_logs_root }}"
+    - "{{ srv_secrets_root }}"
+    - "{{ srv_secrets_root }}/runtime"
+    - "{{ srv_backups_root }}"
+  register: deploy_preflight_directory_stats
+
+- name: Assert required base directories exist
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists
+      - item.stat.isdir
+    fail_msg: "Missing required host directory: {{ item.item }}"
+  loop: "{{ deploy_preflight_directory_stats.results }}"
+
+- name: Gather service facts
+  ansible.builtin.service_facts:
+
+- name: Assert Alloy service exists
+  ansible.builtin.assert:
+    that:
+      - "'alloy.service' in ansible_facts.services"
+    fail_msg: "Alloy service missing on host. Run baseline runtime preparation in server-bootstrap first."
+
+- name: Check shared Docker networks exist
+  ansible.builtin.command:
+    cmd: docker network inspect {{ item }}
+  loop: "{{ shared_docker_networks | default([]) }}"
+  changed_when: false
+  register: deploy_preflight_networks
+  failed_when: false
+
+- name: Assert shared Docker networks exist
+  ansible.builtin.assert:
+    that:
+      - item.rc == 0
+    fail_msg: "Missing required Docker network: {{ item.item }}. Create it before deploy."
+  loop: "{{ deploy_preflight_networks.results | default([]) }}"

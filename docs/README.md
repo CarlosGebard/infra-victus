@@ -4,19 +4,15 @@ Este repositorio define una infraestructura pequeña, separada por capas y por d
 
 ## Capas
 
-- `bootstrap`
-  - prepara el host base
-  - usuario admin, SSH, sudo, fail2ban, ufw, swap
-
-- `runtime`
-  - instala Docker
-  - prepara `/srv/apps`, `/srv/data`, `/srv/logs`, `/srv/secrets`, `/srv/backups`
-  - deja ownership correctos para los contenedores
+- `server-bootstrap`
+  - vive fuera de este repo
+  - prepara el host base y baseline reusable
 
 - `deploy`
   - copia compose y configs desde el repo al host
   - stagea secretos runtime desde GitHub Actions
   - ejecuta `docker compose up -d`
+  - aplica configuración específica de Alloy para este stack
 
 ## Stacks
 
@@ -35,15 +31,13 @@ Este repositorio define una infraestructura pequeña, separada por capas y por d
 ## Principio clave
 
 Compose es la fuente de verdad del runtime.
-Ansible no genera la app; solo prepara host, distribuye archivos y ejecuta despliegue.
+Ansible no bootstrappea el host; distribuye archivos del stack y ejecuta despliegue.
 
 ## Entry points
 
 - `make ansible-check`
 - `make compose-validate`
-- `.github/workflows/bootstrap-host.yml`
-- `.github/workflows/apply-runtime.yml`
-- `.github/workflows/deploy.yml`
+- `.github/workflows/deploy-all.yml`
 
 ## Documentos clave
 

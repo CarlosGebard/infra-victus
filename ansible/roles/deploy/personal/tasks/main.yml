@@ -1,11 +1,64 @@
 ---
-- name: Copy personal stack compose file
+- name: Derive personal compose CLI args
+  ansible.builtin.set_fact:
+    deploy_personal_compose_args: >-
+      {{
+        deploy_stack.compose_cli_files
+        | map('regex_replace', '^(.*)$', '-f \\1')
+        | join(' ')
+      }}
+
+- name: Ensure personal deploy directories exist
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "{{ item.mode }}"
+  loop: "{{ deploy_stack.directories | default([]) }}"
+
+- name: Stage personal runtime secret files
   ansible.builtin.copy:
-    src: "{{ deploy_stack.compose_src }}"
-    dest: "{{ deploy_stack.compose_path }}"
+    src: "{{ item.source_file }}"
+    dest: "{{ item.dest }}"
+    owner: root
+    group: root
+    mode: "{{ item.mode | default('0600') }}"
+  loop: "{{ deploy_stack.staged_secret_files | default([]) }}"
+  when: item.source_file | default('') | length > 0
+  register: deploy_personal_secret_copy
+
+- name: Assert required personal runtime files exist
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop: "{{ deploy_stack.required_files | default([]) }}"
+  register: deploy_personal_required_files
+
+- name: Stop personal deploy when required files missing
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists
+    fail_msg: "Missing required personal file: {{ item.item }}"
+  loop: "{{ deploy_personal_required_files.results }}"
+
+- name: Copy personal static config files
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: root
+    group: root
+    mode: "{{ item.mode | default('0644') }}"
+  loop: "{{ deploy_stack.config_files | default([]) }}"
+  register: deploy_personal_config_copy
+
+- name: Copy personal stack compose files
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
     owner: root
     group: root
     mode: "0644"
+  loop: "{{ deploy_stack.compose_files }}"
   register: deploy_personal_compose_copy
 
 - name: Link active environment file into the personal stack directory
@@ -20,10 +73,22 @@
     deploy_personal_recreate_services: >-
       {{
         (
-          deploy_recreate_services | default([])
+          (
+            deploy_personal_secret_copy.results | default([])
+            | selectattr('changed')
+            | map(attribute='item.recreate_services')
+            | select('defined')
+            | list
+            | flatten
+          )
           + (
             deploy_stack.compose_services | default([])
-            if deploy_personal_compose_copy.changed or deploy_personal_env_link.changed
+            if (
+              deploy_personal_compose_copy.results | default([])
+              | selectattr('changed')
+              | list
+              | length
+            ) > 0 or deploy_personal_env_link.changed
             else []
           )
         ) | unique
@@ -34,18 +99,23 @@
     deploy_personal_restart_services: >-
       {{
         (
-          deploy_restart_services | default([])
+          deploy_personal_config_copy.results | default([])
+          | selectattr('changed')
+          | map(attribute='item.restart_services')
+          | select('defined')
+          | list
+          | flatten
         ) | difference(deploy_personal_recreate_services | default([]))
       }}
 
 - name: Validate rendered personal Compose configuration
   ansible.builtin.command:
-    cmd: docker compose --env-file {{ deploy_stack.env_path }} -f {{ deploy_stack.compose_path }} config
+    cmd: docker compose --env-file {{ deploy_stack.env_path }} {{ deploy_personal_compose_args }} config
   changed_when: false
 
 - name: Deploy the personal stack
   ansible.builtin.command:
-    cmd: docker compose --env-file {{ deploy_stack.env_path }} -f {{ deploy_stack.compose_path }} up -d
+    cmd: docker compose --env-file {{ deploy_stack.env_path }} {{ deploy_personal_compose_args }} up -d
   register: deploy_personal_up
   changed_when: >-
     'Started' in deploy_personal_up.stdout or
@@ -56,7 +126,7 @@
   ansible.builtin.command:
     cmd: >-
       docker compose --env-file {{ deploy_stack.env_path }}
-      -f {{ deploy_stack.compose_path }}
+      {{ deploy_personal_compose_args }}
       up -d --force-recreate {{ deploy_personal_recreate_services | join(' ') }}
   when: deploy_personal_recreate_services | length > 0
   register: deploy_personal_force_recreate
@@ -69,7 +139,7 @@
   ansible.builtin.command:
     cmd: >-
       docker compose --env-file {{ deploy_stack.env_path }}
-      -f {{ deploy_stack.compose_path }}
+      {{ deploy_personal_compose_args }}
       restart {{ deploy_personal_restart_services | join(' ') }}
   when: deploy_personal_restart_services | length > 0
   register: deploy_personal_restart

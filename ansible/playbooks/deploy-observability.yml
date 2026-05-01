@@ -15,5 +15,5 @@
     deploy_stack: "{{ deploy.observability }}"
 
   roles:
-    - role: deploy/shared
+    - role: deploy/alloy
     - role: deploy/observability

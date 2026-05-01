@@ -12,7 +12,8 @@ Regla base:
 - GitHub Actions `Secrets`: evitar, salvo necesidad puntual no cubierta por Infisical
 - Infisical: passwords, llaves y credenciales atómicas
 
-El repositorio usa GitHub Actions solo como orquestador. Fuente objetivo de secretos runtime: Infisical vía OIDC.
+Este repositorio asume que el bootstrap reusable del host se hace en `server-bootstrap`.
+Fuente objetivo de secretos runtime: Infisical vía OIDC.
 
 ## GitHub Actions
 
@@ -48,7 +49,6 @@ Estos valores sí deben salir desde Infisical.
 | `PROD_SSH_PRIVATE_KEY` | secreto | Llave privada SSH |
 | `PROD_SSH_PORT` | secreto operativo opcional | Puerto SSH si no es `22` |
 | `PROD_SSH_KNOWN_HOSTS` | secreto operativo opcional | Huella SSH fija para evitar `ssh-keyscan` |
-| `TAILSCALE_AUTH_KEY` | secreto | Token de enrolamiento Tailscale |
 | `COUCHDB_USER` | secreto atómico | Usuario CouchDB usado para construir `.env` de `personal` |
 | `COUCHDB_PASSWORD` | secreto atómico | Password CouchDB usado para construir `.env` de `personal` |
 | `GRAFANA_ADMIN_PASSWORD` | secreto atómico | Password admin Grafana usado para construir `.env` de `observability` |
@@ -128,15 +128,13 @@ Valor secreto requerido:
 
 ## Cómo lo consume repo
 
-- `bootstrap-host.yml` consume secretos de conexión SSH
-- `apply-runtime.yml` consume secretos de conexión SSH y `TAILSCALE_AUTH_KEY` si runtime enrola nodo
-- `deploy.yml` consume secretos atómicos y los materializa temporalmente en `/tmp`
+- `deploy-all.yml` consume secretos atómicos y los materializa temporalmente en `/tmp`
 - Ansible copia esos archivos a `/srv/secrets/runtime/`
+- `deploy-observability.yml` también reaplica la configuración específica de Alloy para este stack
 
 Referencias:
 
-- [deploy.yml](/home/carlos/victus/infra-victus/.github/workflows/deploy.yml)
-- [runtime.yml](/home/carlos/victus/infra-victus/ansible/playbooks/runtime.yml)
+- [deploy-all.yml](/home/carlos/victus/infra-victus/.github/workflows/deploy-all.yml)
 - [group_vars/deploy.yml](/home/carlos/victus/infra-victus/ansible/inventories/production/group_vars/deploy.yml)
 
 ## Nota operativa

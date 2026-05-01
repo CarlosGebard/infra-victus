@@ -1,5 +1,5 @@
 ---
-- name: Deploy personal stack
+- name: Review deployed stack state
   hosts: all
   become: true
   gather_facts: true
@@ -11,8 +11,5 @@
         extensions:
           - yml
 
-  vars:
-    deploy_stack: "{{ deploy.personal }}"
-
   roles:
-    - role: deploy/personal
+    - role: deploy/review

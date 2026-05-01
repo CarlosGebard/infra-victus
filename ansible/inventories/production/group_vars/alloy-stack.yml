@@ -1,0 +1,10 @@
+alloy:
+  http_listen_addr: 127.0.0.1:12345
+  storage_path: /var/lib/alloy/data
+
+victus:
+  alloy:
+    loki_write_url: http://127.0.0.1:3100/loki/api/v1/push
+    extra_labels:
+      stack: infra-victus
+      environment: production

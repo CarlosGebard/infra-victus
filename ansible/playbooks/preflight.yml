@@ -1,5 +1,5 @@
 ---
-- name: Deploy personal stack
+- name: Check global deploy prerequisites
   hosts: all
   become: true
   gather_facts: true
@@ -11,8 +11,5 @@
         extensions:
           - yml
 
-  vars:
-    deploy_stack: "{{ deploy.personal }}"
-
   roles:
-    - role: deploy/personal
+    - role: deploy/preflight

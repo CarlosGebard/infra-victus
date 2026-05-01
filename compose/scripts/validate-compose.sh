@@ -27,15 +27,17 @@ validate_stack() {
 	local stack="$1"
 	local stack_dir="$ROOT_DIR/compose/projects/$stack"
 	local env_file="$stack_dir/.env"
-	local compose_file="$stack_dir/docker-compose.local.yml"
+	local compose_base="$stack_dir/compose.yml"
+	local compose_overlay="$stack_dir/compose.dev.yml"
 
 	log "Validating stack: $stack"
 
 	require_file "$env_file"
-	require_file "$compose_file"
+	require_file "$compose_base"
+	require_file "$compose_overlay"
 
 	log "$stack: docker compose config"
-	docker compose --env-file "$env_file" -f "$compose_file" config >/dev/null
+	docker compose --env-file "$env_file" -f "$compose_base" -f "$compose_overlay" config >/dev/null
 
 	log "$stack: compose rendered OK"
 }
@@ -43,9 +45,11 @@ validate_stack() {
 validate_nginx() {
 	local nginx_conf="$ROOT_DIR/compose/configs/nginx/nginx.conf"
 	local nginx_conf_dir="$ROOT_DIR/compose/configs/nginx/conf.d"
+	local nginx_snippets_dir="$ROOT_DIR/compose/configs/nginx/snippets"
 
 	require_file "$nginx_conf"
 	require_dir "$nginx_conf_dir"
+	require_dir "$nginx_snippets_dir"
 
 	log "Validating nginx config"
 	docker run --rm \
@@ -56,6 +60,7 @@ validate_nginx() {
 		--add-host loki:127.0.0.1 \
 		-v "$nginx_conf:/etc/nginx/nginx.conf:ro" \
 		-v "$nginx_conf_dir:/etc/nginx/conf.d:ro" \
+		-v "$nginx_snippets_dir:/etc/nginx/snippets:ro" \
 		nginx:1.28.3-alpine nginx -t
 }
 

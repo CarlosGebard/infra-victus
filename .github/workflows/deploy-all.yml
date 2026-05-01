@@ -70,14 +70,16 @@ jobs:
           bash tests/ansible/deploy-syntax-check.sh
           bash tests/ansible/deploy-personal-syntax-check.sh
           bash tests/ansible/deploy-observability-syntax-check.sh
+          bash tests/ansible/preflight-syntax-check.sh
+          bash tests/ansible/review-syntax-check.sh
 
       - name: Validate all docker-compose files
         run: |
           set -euo pipefail
-          
-          docker compose -f compose/projects/core/docker-compose.yml config > /dev/null
-          docker compose -f compose/projects/personal/docker-compose.yml config > /dev/null
-          docker compose -f compose/projects/observability/docker-compose.yml config > /dev/null
+
+          docker compose -f compose/projects/core/compose.yml -f compose/projects/core/compose.prod.yml config > /dev/null
+          docker compose -f compose/projects/personal/compose.yml -f compose/projects/personal/compose.prod.yml config > /dev/null
+          docker compose -f compose/projects/observability/compose.yml -f compose/projects/observability/compose.prod.yml config > /dev/null
 
       - name: Assert all required secrets present
         env:
@@ -113,9 +115,71 @@ jobs:
             exit 1
           fi
 
+  preflight:
+    name: Check Host Ready
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.DEPLOY_GIT_REF }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Pull secrets from Infisical
+        uses: Infisical/secrets-action@v1.0.10
+        with:
+          method: "oidc"
+          identity-id: "${{ vars.INFISICAL_IDENTITY_ID }}"
+          project-slug: "${{ vars.INFISICAL_PROJECT_SLUG }}"
+          env-slug: "${{ vars.INFISICAL_ENV_SLUG }}"
+
+      - name: Install Ansible
+        run: python -m pip install --upgrade pip ansible-core
+
+      - name: Prepare SSH material
+        env:
+          PROD_HOST: ${{ env.PROD_HOST }}
+          PROD_SSH_KNOWN_HOSTS: ${{ env.PROD_SSH_KNOWN_HOSTS }}
+          PROD_SSH_PORT: ${{ env.PROD_SSH_PORT }}
+          PROD_SSH_PRIVATE_KEY: ${{ env.PROD_SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          bash .github/scripts/prepare-ssh.sh
+
+      - name: Build inventory
+        env:
+          PROD_HOST: ${{ env.PROD_HOST }}
+          PROD_SSH_PORT: ${{ env.PROD_SSH_PORT }}
+        run: |
+          set -euo pipefail
+          bash .github/scripts/build-deploy-inventory.sh
+
+      - name: Check host deploy prerequisites
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: "true"
+        run: |
+          set -euo pipefail
+          
+          cd ansible
+          
+          ansible-playbook \
+            -i /tmp/deploy-hosts.yml \
+            playbooks/preflight.yml
+
   deploy-observability:
     name: Deploy Observability Stack
-    needs: validate
+    needs: preflight
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: production
@@ -153,20 +217,7 @@ jobs:
           PROD_SSH_PRIVATE_KEY: ${{ env.PROD_SSH_PRIVATE_KEY }}
         run: |
           set -euo pipefail
-          
-          mkdir -p "$HOME/.ssh"
-          chmod 700 "$HOME/.ssh"
-          
-          printf '%s\n' "$PROD_SSH_PRIVATE_KEY" > "$HOME/.ssh/deploy_key"
-          chmod 600 "$HOME/.ssh/deploy_key"
-          
-          if [[ -n "${PROD_SSH_KNOWN_HOSTS:-}" ]]; then
-            printf '%s\n' "$PROD_SSH_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
-          else
-            ssh-keyscan -p "${PROD_SSH_PORT:-22}" -H "$PROD_HOST" >> "$HOME/.ssh/known_hosts"
-          fi
-          
-          chmod 644 "$HOME/.ssh/known_hosts"
+          bash .github/scripts/prepare-ssh.sh
 
       - name: Materialize observability runtime env
         env:
@@ -193,26 +244,14 @@ jobs:
           PROD_SSH_PORT: ${{ env.PROD_SSH_PORT }}
         run: |
           set -euo pipefail
-          
-          printf '%s\n' \
-            'all:' \
-            '  hosts:' \
-            '    deploy_target:' \
-            "      ansible_host: ${PROD_HOST}" \
-            '      ansible_user: carlos' \
-            "      ansible_port: ${PROD_SSH_PORT:-22}" \
-            "      ansible_ssh_private_key_file: ${HOME}/.ssh/deploy_key" \
-            > /tmp/deploy-hosts.yml
+          bash .github/scripts/build-deploy-inventory.sh
 
       - name: Validate observability deploy files exist
         run: |
           set -euo pipefail
           
-          echo "Checking required files for observability deployment..."
           [[ -f /tmp/observability-runtime.env ]] || { echo "✗ Missing /tmp/observability-runtime.env"; exit 1; }
           [[ -f /tmp/deploy-hosts.yml ]] || { echo "✗ Missing /tmp/deploy-hosts.yml"; exit 1; }
-          
-          echo "✓ All files present"
 
       - name: Deploy observability
         env:
@@ -229,7 +268,7 @@ jobs:
 
   deploy-personal:
     name: Deploy Personal Stack
-    needs: validate
+    needs: preflight
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: production
@@ -267,20 +306,7 @@ jobs:
           PROD_SSH_PRIVATE_KEY: ${{ env.PROD_SSH_PRIVATE_KEY }}
         run: |
           set -euo pipefail
-          
-          mkdir -p "$HOME/.ssh"
-          chmod 700 "$HOME/.ssh"
-          
-          printf '%s\n' "$PROD_SSH_PRIVATE_KEY" > "$HOME/.ssh/deploy_key"
-          chmod 600 "$HOME/.ssh/deploy_key"
-          
-          if [[ -n "${PROD_SSH_KNOWN_HOSTS:-}" ]]; then
-            printf '%s\n' "$PROD_SSH_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
-          else
-            ssh-keyscan -p "${PROD_SSH_PORT:-22}" -H "$PROD_HOST" >> "$HOME/.ssh/known_hosts"
-          fi
-          
-          chmod 644 "$HOME/.ssh/known_hosts"
+          bash .github/scripts/prepare-ssh.sh
 
       - name: Materialize personal runtime env
         env:
@@ -301,16 +327,7 @@ jobs:
           PROD_SSH_PORT: ${{ env.PROD_SSH_PORT }}
         run: |
           set -euo pipefail
-          
-          printf '%s\n' \
-            'all:' \
-            '  hosts:' \
-            '    deploy_target:' \
-            "      ansible_host: ${PROD_HOST}" \
-            '      ansible_user: carlos' \
-            "      ansible_port: ${PROD_SSH_PORT:-22}" \
-            "      ansible_ssh_private_key_file: ${HOME}/.ssh/deploy_key" \
-            > /tmp/deploy-hosts.yml
+          bash .github/scripts/build-deploy-inventory.sh
 
       - name: Validate personal deploy files exist
         run: |
@@ -375,20 +392,7 @@ jobs:
           PROD_SSH_PRIVATE_KEY: ${{ env.PROD_SSH_PRIVATE_KEY }}
         run: |
           set -euo pipefail
-          
-          mkdir -p "$HOME/.ssh"
-          chmod 700 "$HOME/.ssh"
-          
-          printf '%s\n' "$PROD_SSH_PRIVATE_KEY" > "$HOME/.ssh/deploy_key"
-          chmod 600 "$HOME/.ssh/deploy_key"
-          
-          if [[ -n "${PROD_SSH_KNOWN_HOSTS:-}" ]]; then
-            printf '%s\n' "$PROD_SSH_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
-          else
-            ssh-keyscan -p "${PROD_SSH_PORT:-22}" -H "$PROD_HOST" >> "$HOME/.ssh/known_hosts"
-          fi
-          
-          chmod 644 "$HOME/.ssh/known_hosts"
+          bash .github/scripts/prepare-ssh.sh
 
       - name: Materialize core runtime env
         env:
@@ -446,16 +450,7 @@ jobs:
           PROD_SSH_PORT: ${{ env.PROD_SSH_PORT }}
         run: |
           set -euo pipefail
-          
-          printf '%s\n' \
-            'all:' \
-            '  hosts:' \
-            '    deploy_target:' \
-            "      ansible_host: ${PROD_HOST}" \
-            '      ansible_user: carlos' \
-            "      ansible_port: ${PROD_SSH_PORT:-22}" \
-            "      ansible_ssh_private_key_file: ${HOME}/.ssh/deploy_key" \
-            > /tmp/deploy-hosts.yml
+          bash .github/scripts/build-deploy-inventory.sh
 
       - name: Validate core deploy files exist
         run: |
@@ -499,7 +494,7 @@ jobs:
             playbooks/deploy.yml
 
   verify:
-    name: Verify all services running
+    name: Review deployed state
     needs: [deploy-core]
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -519,6 +514,9 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Install Ansible
+        run: python -m pip install --upgrade pip ansible-core
+
       - name: Pull secrets from Infisical
         uses: Infisical/secrets-action@v1.0.10
         with:
@@ -532,62 +530,30 @@ jobs:
           PROD_HOST: ${{ env.PROD_HOST }}
           PROD_SSH_PRIVATE_KEY: ${{ env.PROD_SSH_PRIVATE_KEY }}
           PROD_SSH_PORT: ${{ env.PROD_SSH_PORT }}
+          PROD_SSH_KNOWN_HOSTS: ${{ env.PROD_SSH_KNOWN_HOSTS }}
         run: |
           set -euo pipefail
-          
-          mkdir -p "$HOME/.ssh"
-          chmod 700 "$HOME/.ssh"
-          
-          printf '%s\n' "$PROD_SSH_PRIVATE_KEY" > "$HOME/.ssh/deploy_key"
-          chmod 600 "$HOME/.ssh/deploy_key"
-          
-          if [[ -n "${PROD_SSH_KNOWN_HOSTS:-}" ]]; then
-            printf '%s\n' "$PROD_SSH_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
-          else
-            ssh-keyscan -p "${PROD_SSH_PORT:-22}" -H "$PROD_HOST" >> "$HOME/.ssh/known_hosts"
-          fi
-          
-          chmod 644 "$HOME/.ssh/known_hosts"
+          bash .github/scripts/prepare-ssh.sh
 
-      - name: Verify all containers running
+      - name: Build inventory
         env:
           PROD_HOST: ${{ env.PROD_HOST }}
           PROD_SSH_PORT: ${{ env.PROD_SSH_PORT }}
         run: |
           set -euo pipefail
-          
-          ssh -p "${PROD_SSH_PORT:-22}" -i "$HOME/.ssh/deploy_key" "carlos@${PROD_HOST}" << 'EOF'
+          bash .github/scripts/build-deploy-inventory.sh
+
+      - name: Review deployed state
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: "true"
+        run: |
           set -euo pipefail
-          
-          echo "=== Docker Containers Status ==="
-          docker ps --all
-          
-          echo ""
-          echo "=== Verifying expected services ==="
-          
-          # Expected containers
-          services=(
-            "nginx"
-            "seaweedfs"
-            "couchdb"
-            "loki"
-            "prometheus"
-            "grafana"
-          )
-          
-          for service in "${services[@]}"; do
-            status=$(docker ps --all --filter "name=$service" --format "{{.State}}")
-            if [[ "$status" == "running" ]]; then
-              echo "✓ $service: running"
-            else
-              echo "✗ $service: not running (status: $status)"
-              exit 1
-            fi
-          done
-          
-          echo ""
-          echo "=== All services verified successfully ==="
-          EOF
+
+          cd ansible
+
+          ansible-playbook \
+            -i /tmp/deploy-hosts.yml \
+            playbooks/review.yml
 
   notify-success:
     name: Notify deployment success

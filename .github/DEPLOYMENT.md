@@ -4,6 +4,7 @@
 
 Infra-Victus uses deployment workflows:
 
+- **`prepare-victus-host.yml`** - Applies Victus-specific host configuration.
 - **`deploy-all.yml`** - Orchestrates all stacks in correct order. Main CD workflow. Auto-runs on `push` to `main` for infra changes.
 
 ## Stack Dependencies

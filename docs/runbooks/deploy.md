@@ -6,17 +6,12 @@
 2. validar compose
 3. si hay dudas de OIDC o Infisical, ejecutar workflow `debug-infisical-oidc.yml`
 4. si hay dudas de reachability o credenciales SSH, ejecutar workflow `debug-ssh-connectivity.yml`
-5. ejecutar `bootstrap-host.yml` usando acceso inicial como `root`
-6. ejecutar `apply-runtime.yml` usando usuario admin `carlos`
-7. `push` a `main` dispara validación y deploy automático si hubo cambios en `.github/workflows/`, `ansible/`, `compose/` o `tests/ansible/`
-8. usar dispatch manual solo para bootstrap, runtime, redeploy puntual o rollback operativo
+5. ejecutar `bootstrap-host.yml` y `apply-runtime.yml` desde el repo `server-bootstrap`
+6. `push` a `main` dispara validación y deploy automático si hubo cambios en `.github/workflows/`, `ansible/`, `compose/` o `tests/ansible/`
+7. usar dispatch manual solo para redeploy puntual o rollback operativo
 
 ## Inputs del workflow
 
-- `bootstrap-host.yml`
-  - `git_ref`
-- `apply-runtime.yml`
-  - `git_ref`
 - `deploy-all.yml`
   - `git_ref` solo en `workflow_dispatch`
   - en `push` a `main`, despliega SHA del commit automáticamente
@@ -49,16 +44,14 @@ echo ok && hostname && whoami
 
 ## Usuarios por fase
 
-- `debug-ssh-connectivity.yml`: conecta como `root`
-- `bootstrap-host.yml`: conecta como `root`
-- `apply-runtime.yml`: conecta como `carlos`
+- `debug-ssh-connectivity.yml`: conecta como `root` o como el usuario que corresponda al repo de bootstrap
 - `deploy-all.yml`: conecta como `carlos`
 
 Razón:
 
-- `root` sirve para primer acceso al host virgen
-- bootstrap crea y prepara usuario admin
-- runtime y deploy deben operar con usuario admin ya provisionado
+- `server-bootstrap` resuelve el lifecycle del host
+- `infra-victus` asume usuario admin ya provisionado
+- deploy opera sobre un host ya bootstrappeado
 
 ## Orden recomendado
 
@@ -130,7 +123,7 @@ Deploy no hace `down/up` global. Aplica acciones puntuales por stack según tipo
 
 - cambio en archivo de config montado por bind mount
   - corre `docker compose restart` solo para servicios afectados
-- cambio en secreto staged, `docker-compose.yml` o `.env` enlazado
+- cambio en compose base, compose overlay de producción o `.env` enlazado
   - corre `docker compose up -d --force-recreate` solo para servicios afectados
 
 Mapa actual:

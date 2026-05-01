@@ -1,0 +1,32 @@
+---
+- name: Ensure Alloy storage path exists
+  ansible.builtin.file:
+    path: "{{ alloy.storage_path }}"
+    state: directory
+    owner: alloy
+    group: alloy
+    mode: "0750"
+
+- name: Install stack-specific Alloy config
+  ansible.builtin.template:
+    src: config.alloy.j2
+    dest: /etc/alloy/config.alloy
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart alloy
+
+- name: Configure Alloy service flags for this stack
+  ansible.builtin.template:
+    src: default.alloy.j2
+    dest: /etc/default/alloy
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart alloy
+
+- name: Ensure Alloy service is enabled and running
+  ansible.builtin.service:
+    name: alloy
+    state: started
+    enabled: true

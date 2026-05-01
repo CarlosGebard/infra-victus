@@ -3,8 +3,10 @@
 Infraestructura reproducible para un VPS usando:
 
 - Docker Compose como source of truth del runtime
-- Ansible para bootstrap, runtime y deploy
+- Ansible para desplegar stacks y aplicar configuración específica del stack
 - GitHub Actions + OIDC + Infisical para automatización segura
+
+El bootstrap reusable del servidor vive en el repo hermano `server-bootstrap`.
 
 ## Layout
 
@@ -12,33 +14,18 @@ Infraestructura reproducible para un VPS usando:
   - stacks `core`, `personal`, `observability`
   - configs que se copian tal cual al host
 - `ansible/`
-  - `playbooks/bootstrap.yml`
-  - `playbooks/runtime.yml`
   - deploys por stack
 - `.github/workflows/`
-  - `bootstrap-host.yml`
-  - `apply-runtime.yml`
   - `deploy-all.yml`
   - `validate-infra.yml`
 
 ## Modelo operativo
 
-1. `bootstrap`
-   - usuario admin
-   - SSH hardening
-   - fail2ban / ufw
-   - swap
-
-2. `runtime`
-   - Docker Engine
-   - Docker Compose plugin
-   - layout `/srv/...`
-   - ownership para datos de contenedores
-
-3. `deploy`
+1. `deploy`
    - `deploy-all.yml` es pipeline CD principal
    - corre automático en `push` a `main` para cambios de infraestructura
    - mantiene orden `observability -> personal -> core`
+   - reaplica config específica de Alloy junto al deploy de observability
 
 ## Orden recomendado de rollout
 

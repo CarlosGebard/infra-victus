@@ -9,10 +9,11 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 up_stack() {
   local stack="$1"
   local env_file="$ROOT_DIR/compose/projects/$stack/.env"
-  local compose_file="$ROOT_DIR/compose/projects/$stack/docker-compose.local.yml"
+  local compose_base="$ROOT_DIR/compose/projects/$stack/compose.yml"
+  local compose_overlay="$ROOT_DIR/compose/projects/$stack/compose.dev.yml"
 
   echo "==> Starting $stack"
-  docker compose --env-file "$env_file" -f "$compose_file" up -d
+  docker compose --env-file "$env_file" -f "$compose_base" -f "$compose_overlay" up -d
 }
 
 up_stack personal

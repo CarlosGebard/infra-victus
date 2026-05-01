@@ -6,74 +6,78 @@ Aceptado
 
 ## Contexto
 
-Repositorio define infraestructura reproducible para VPS con tres capas:
+Repositorio queda dividido en dos responsabilidades:
 
-- `bootstrap`
-- `runtime`
-- `deploy`
+- `server-bootstrap`
+- `infra-victus`
 
 Había ambigüedad en tres puntos:
 
 1. si CD debe ser automático o manual
-2. qué entra en `runtime`
+2. qué entra en `server-bootstrap` vs `infra-victus`
 3. si Grafana provisioning queda automatizado o manual
 
 ## Decisiones
 
-### 1. CD sigue manual en GitHub Actions
+### 1. Deploy del stack corre automático en `push` a `main`
 
-Los workflows operativos quedan en `workflow_dispatch`.
+Bootstrap reusable del host queda en `server-bootstrap`.
 
-Se decide no hacer deploy automático en `push` ni en `main`.
+El deploy del stack sí corre automáticamente en `push` a `main` con filtros de paths relevantes.
 
 Razón:
 
-- infraestructura toca host real
-- rollout por stack importa
-- `core` depende de `observability` y `personal`
-- se quiere control humano antes de aplicar cambios
+- bootstrap toca lifecycle sensible del servidor y debe seguir manual
+- deploy del stack tiene source of truth en git y conviene que reaccione al merge
+- `deploy-all.yml` ya respeta orden `observability -> personal -> core`
+- los filtros de paths reducen ejecuciones innecesarias
 
-Esto no impide tener CI automática de validación en futuro.
+Esto mantiene claro el flujo:
 
-### 2. `runtime` incluye baseline de host, Docker y agentes host-level actuales
+- host lifecycle manual
+- app/service lifecycle automático
 
-Mientras árbol actual se mantenga, `runtime` incluye:
+### 2. `server-bootstrap` y `infra-victus` se separan por responsabilidad
 
+`server-bootstrap` incluye:
+
+- bootstrap del host
 - Docker Engine
 - Docker Compose plugin
-- layout `/srv/...`
-- ownership de directorios de runtime
 - Tailscale
-- Grafana Alloy
-- validaciones de esos componentes
+- Grafana Alloy package, service y config mínima
+- layout base `/srv/...`
+
+`infra-victus` incluye:
+
+- config concreta de Alloy
+- deploy de stacks Compose
 
 Razón:
 
-- eso es lo que hoy implementa playbook `ansible/playbooks/runtime.yml`
-- Tailscale y Alloy no se despliegan como stack Compose; operan como servicios del host
-- documentar esto evita leer `runtime` como “solo Docker”
+- bootstrap del host debe ser reusable
+- deploy del stack no debe cargar instalación base del host
+- la configuración concreta de Alloy depende del stack Victus y por eso queda separada
 
-Si en futuro se quiere separar `Tailscale` o `Alloy` a otra capa, debe abrirse un ADR nuevo y luego ajustar playbooks, variables y validaciones.
+### 3. Deploy queda separado por stack, con orquestación automática
 
-### 3. Deploy queda separado por stack
-
-Se mantiene un deploy manual por stack:
+Se mantiene separación lógica por stack:
 
 - `core`
 - `personal`
 - `observability`
 
-No habrá `deploy all`.
+`deploy-all.yml` orquesta el rollout completo y automático cuando corresponde.
 
 Razón:
 
 - menor acoplamiento
-- rollout controlado
+- rollout ordenado
 - fallas aisladas por dominio
 
-### 4. Grafana provisioning queda preparado en filesystem, pero no automatizado todavía
+### 4. Grafana provisioning queda preparado en deploy, pero no automatizado todavía
 
-Repositorio prepara directorios de provisioning para Grafana, pero no versiona aún archivos de datasources o dashboards.
+Repositorio mantiene mounts y rutas esperadas para provisioning de Grafana, pero no versiona aún archivos de datasources o dashboards.
 
 Decisión actual:
 
@@ -91,14 +95,12 @@ Cuando se agreguen archivos versionados en `compose/configs/grafana/provisioning
 
 ## Consecuencias
 
-- CD sigue siendo controlado por operador
-- `runtime` debe considerarse capa de host, no solo capa Docker
-- `TAILSCALE_AUTH_KEY` forma parte de contrato operativo de `runtime`
+- `server-bootstrap` opera el lifecycle del host
+- deploy automático sigue siendo válido para cambios de stack
+- `infra-victus` asume host ya bootstrappeado
 - Grafana todavía no es completamente reproducible a nivel de dashboards/datasources provisionados
 
 ## Referencias
 
-- [apply-runtime.yml](/home/carlos/victus/infra-victus/.github/workflows/apply-runtime.yml)
-- [deploy.yml](/home/carlos/victus/infra-victus/.github/workflows/deploy.yml)
-- [runtime.yml](/home/carlos/victus/infra-victus/ansible/playbooks/runtime.yml)
-- [group_vars/runtime.yml](/home/carlos/victus/infra-victus/ansible/inventories/production/group_vars/runtime.yml)
+- [deploy-all.yml](/home/carlos/victus/infra-victus/.github/workflows/deploy-all.yml)
+- [deploy-observability.yml](/home/carlos/victus/infra-victus/ansible/playbooks/deploy-observability.yml)

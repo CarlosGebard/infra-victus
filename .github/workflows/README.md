@@ -8,8 +8,6 @@ Workflows manage infrastructure deployment via GitHub Actions + Infisical OIDC.
 
 | Workflow | Purpose | Trigger | Frequency |
 |----------|---------|---------|-----------|
-| `bootstrap-host.yml` | Initial VPS setup (root access required) | Manual dispatch | Once per host |
-| `apply-runtime.yml` | Runtime environment setup (Ansible infrastructure) | Manual dispatch | Once after bootstrap |
 | **`deploy-all.yml`** | **Deploy all 3 stacks in correct order** | `push` to `main` on infra changes + manual dispatch | Production rollout |
 | `validate-infra.yml` | Validate compose files + syntax | PR to `main`, `push` to `main`, manual dispatch | Each infra change |
 | `debug-*.yml` | Troubleshooting utilities | Manual dispatch | Debugging only |
@@ -19,12 +17,12 @@ Workflows manage infrastructure deployment via GitHub Actions + Infisical OIDC.
 ### Fresh VPS Setup
 
 ```
-1. bootstrap-host.yml
-   └─ One-time: Docker, system packages
-   
-2. apply-runtime.yml
-   └─ One-time: Directory structure, systemd, permissions
-   
+1. server-bootstrap/bootstrap-host.yml
+   └─ One-time: hardening and initial host access
+
+2. server-bootstrap/apply-runtime.yml
+   └─ One-time: Docker, Tailscale, Alloy package, base directories
+
 3. deploy-all.yml
    └─ Repeatable: Deploy apps (observability → personal → core)
 ```
@@ -71,16 +69,6 @@ verify (all 6 services healthy)
 **Concurrency**: Prevents parallel deployments (lock on `production-deploy-all`)
 
 **Time**: ~15-20 minutes
-
-### `apply-runtime.yml`
-
-**Status**: One-time infrastructure setup
-
-**Purpose**: Creates `/srv/` directory structure, sets permissions, installs base packages
-
-**Run After**: `bootstrap-host.yml` (exactly once)
-
-**Concurrency**: Locked to prevent conflicts
 
 ### `bootstrap-host.yml`
 
@@ -136,7 +124,8 @@ GRAFANA_ADMIN_PASSWORD       # Grafana admin password
 Use `.env.test`:
 ```bash
 docker compose --env-file .env.test \
-  -f compose/projects/core/docker-compose.yml \
+  -f compose/projects/core/compose.yml \
+  -f compose/projects/core/compose.dev.yml \
   up -d
 ```
 
@@ -176,9 +165,6 @@ Verifies all 6 containers running:
 - **`deploy-all.yml`**: Locked to `production-deploy-all`
   - Prevents parallel full deployments
   - Cancels in-progress: `false` (let current finish)
-
-- **`apply-runtime.yml`**: Locked to `production-runtime`
-  - Prevents parallel infrastructure changes
 
 ## Troubleshooting
 
@@ -257,7 +243,9 @@ gh run watch <run-id>
 
 To add a new stack (e.g., `api`):
 
-1. Create `compose/projects/api/docker-compose.yml`
+1. Create `compose/projects/api/compose.yml`
+2. Create `compose/projects/api/compose.dev.yml`
+3. Create `compose/projects/api/compose.prod.yml`
 2. Create `ansible/playbooks/deploy-api.yml`
 3. Create `tests/ansible/deploy-api-syntax-check.sh`
 4. Add job to `deploy-all.yml` with correct `needs:` ordering

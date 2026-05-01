@@ -5,14 +5,21 @@ deploy:
   core:
     name: core
     project_dir: "{{ srv_apps_root }}/core"
-    compose_src: "{{ playbook_dir }}/../../compose/projects/core/docker-compose.yml"
-    compose_path: "{{ srv_apps_root }}/core/docker-compose.yml"
+    compose_files:
+      - src: "{{ playbook_dir }}/../../compose/projects/core/compose.yml"
+        dest: "{{ srv_apps_root }}/core/compose.yml"
+      - src: "{{ playbook_dir }}/../../compose/projects/core/compose.prod.yml"
+        dest: "{{ srv_apps_root }}/core/compose.prod.yml"
+    compose_cli_files:
+      - "{{ srv_apps_root }}/core/compose.yml"
+      - "{{ srv_apps_root }}/core/compose.prod.yml"
     env_path: "{{ srv_secrets_root }}/runtime/core.env"
     compose_services:
       - nginx
       - seaweedfs
     directories:
       - { path: "{{ srv_apps_root }}/core/nginx/conf.d", mode: "0755" }
+      - { path: "{{ srv_apps_root }}/core/nginx/snippets", mode: "0755" }
       - { path: "{{ srv_apps_root }}/core/nginx/acme", mode: "0755" }
     staged_secret_files:
       - source_file: "{{ lookup('ansible.builtin.env', 'CORE_RUNTIME_ENV_SOURCE_FILE') | default('', true) }}"
@@ -34,12 +41,22 @@ deploy:
         dest: "{{ srv_apps_root }}/core/nginx/nginx.conf"
         restart_services:
           - nginx
+      - src: "{{ playbook_dir }}/../../compose/configs/nginx/snippets/private-access.conf"
+        dest: "{{ srv_apps_root }}/core/nginx/snippets/private-access.conf"
+        restart_services:
+          - nginx
 
   personal:
     name: personal
     project_dir: "{{ srv_apps_root }}/personal"
-    compose_src: "{{ playbook_dir }}/../../compose/projects/personal/docker-compose.yml"
-    compose_path: "{{ srv_apps_root }}/personal/docker-compose.yml"
+    compose_files:
+      - src: "{{ playbook_dir }}/../../compose/projects/personal/compose.yml"
+        dest: "{{ srv_apps_root }}/personal/compose.yml"
+      - src: "{{ playbook_dir }}/../../compose/projects/personal/compose.prod.yml"
+        dest: "{{ srv_apps_root }}/personal/compose.prod.yml"
+    compose_cli_files:
+      - "{{ srv_apps_root }}/personal/compose.yml"
+      - "{{ srv_apps_root }}/personal/compose.prod.yml"
     env_path: "{{ srv_secrets_root }}/runtime/personal.env"
     compose_services:
       - couchdb
@@ -62,8 +79,14 @@ deploy:
   observability:
     name: observability
     project_dir: "{{ srv_apps_root }}/observability"
-    compose_src: "{{ playbook_dir }}/../../compose/projects/observability/docker-compose.yml"
-    compose_path: "{{ srv_apps_root }}/observability/docker-compose.yml"
+    compose_files:
+      - src: "{{ playbook_dir }}/../../compose/projects/observability/compose.yml"
+        dest: "{{ srv_apps_root }}/observability/compose.yml"
+      - src: "{{ playbook_dir }}/../../compose/projects/observability/compose.prod.yml"
+        dest: "{{ srv_apps_root }}/observability/compose.prod.yml"
+    compose_cli_files:
+      - "{{ srv_apps_root }}/observability/compose.yml"
+      - "{{ srv_apps_root }}/observability/compose.prod.yml"
     env_path: "{{ srv_secrets_root }}/runtime/observability.env"
     compose_services:
       - loki

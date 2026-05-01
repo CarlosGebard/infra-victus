@@ -1,0 +1,51 @@
+logging {
+  level  = "info"
+  format = "logfmt"
+}
+
+local.file_match "system_logs" {
+  path_targets = [
+    {
+      __path__ = "/var/log/*.log",
+      job      = "system_logs",
+      host     = constants.hostname,
+    },
+    {
+      __path__ = "/var/log/*/*.log",
+      job      = "system_logs",
+      host     = constants.hostname,
+    },
+  ]
+}
+
+loki.source.file "system_logs" {
+  targets    = local.file_match.system_logs.targets
+  forward_to = [loki.process.system_logs.receiver]
+}
+
+loki.process "system_logs" {
+  stage.static_labels {
+    values = {
+      host   = constants.hostname,
+{% for key, value in victus.alloy.extra_labels.items() %}
+      {{ key }} = "{{ value }}",
+{% endfor %}
+    }
+  }
+
+  forward_to = [loki.write.local.receiver]
+}
+
+loki.write "local" {
+  endpoint {
+    url = "{{ victus.alloy.loki_write_url }}"
+  }
+
+  external_labels = {
+    collector = "alloy",
+    host      = constants.hostname,
+{% for key, value in victus.alloy.extra_labels.items() %}
+    {{ key }} = "{{ value }}",
+{% endfor %}
+  }
+}
