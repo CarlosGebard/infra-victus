@@ -152,12 +152,10 @@ server {
 
 {% if core_tls_enabled | bool %}
   location / {
-    include /etc/nginx/snippets/private-access.conf;
     return 301 https://$host$request_uri;
   }
 {% else %}
   location / {
-    include /etc/nginx/snippets/private-access.conf;
     set $upstream couchdb:5984;
     proxy_pass http://$upstream;
   }
@@ -244,7 +242,6 @@ server {
   ssl_prefer_server_ciphers off;
 
   location / {
-    include /etc/nginx/snippets/private-access.conf;
     set $upstream couchdb:5984;
     proxy_pass http://$upstream;
   }
