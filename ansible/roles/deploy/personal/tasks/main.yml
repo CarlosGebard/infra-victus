@@ -3,9 +3,7 @@
   ansible.builtin.set_fact:
     deploy_personal_compose_args: >-
       {{
-        deploy_stack.compose_cli_files
-        | map('regex_replace', '^(.*)$', '-f \\1')
-        | join(' ')
+        '-f ' ~ (deploy_stack.compose_cli_files | join(' -f '))
       }}
 
 - name: Ensure personal deploy directories exist
