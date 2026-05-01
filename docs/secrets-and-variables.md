@@ -28,6 +28,7 @@ Estas variables no son secretas y describen entorno o integración:
 | `INFISICAL_IDENTITY_ID` | GitHub Actions Variable | Identificador de identidad OIDC usado por workflows |
 | `INFISICAL_PROJECT_SLUG` | GitHub Actions Variable | Identificador de proyecto en Infisical |
 | `INFISICAL_ENV_SLUG` | GitHub Actions Variable | Ambiente objetivo en Infisical, por ejemplo `prod` |
+| `INFISICAL_SECRET_PATH` | GitHub Actions Variable | Ruta/carpeta de secretos dentro de Infisical usada por workflows |
 | `CORE_RUNTIME_ENV` | GitHub Actions Variable | `.env` de `core` solo si no contiene secretos |
 
 ### Secrets

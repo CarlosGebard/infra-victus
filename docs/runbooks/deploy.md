@@ -22,6 +22,7 @@ Usar `.github/workflows/debug-infisical-oidc.yml` cuando quieras validar:
 
 - que GitHub entregue token OIDC
 - que los `vars.INFISICAL_*` estén presentes
+- que `vars.INFISICAL_SECRET_PATH` apunte a carpeta correcta
 - que Infisical acepte identidad OIDC
 - que contrato mínimo de secretos exista
 

@@ -34,6 +34,7 @@ Revisar también variables de GitHub Actions `production`:
 - `INFISICAL_IDENTITY_ID`
 - `INFISICAL_PROJECT_SLUG`
 - `INFISICAL_ENV_SLUG`
+- `INFISICAL_SECRET_PATH`
 - `BASE_DOMAIN`
 - `CERTBOT_EMAIL` opcional
 - `CORE_RUNTIME_ENV` opcional y sin secretos

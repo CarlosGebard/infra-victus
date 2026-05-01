@@ -86,7 +86,7 @@ All workflows fetch secrets from **Infisical via OIDC**:
 
 1. Workflow requests token from GitHub OIDC provider
 2. Token exchanged with Infisical identity
-3. Infisical returns project secrets (environment-specific)
+3. Infisical returns project secrets from configured `secret-path` and environment
 4. Secrets injected as environment variables
 5. Ansible uses injected secrets for configuration
 
