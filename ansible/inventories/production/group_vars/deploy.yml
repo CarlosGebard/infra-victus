@@ -17,10 +17,16 @@ deploy:
     compose_services:
       - nginx
       - seaweedfs
+      - etcd
+      - coredns
     directories:
       - { path: "{{ srv_apps_root }}/core/nginx/conf.d", mode: "0755" }
       - { path: "{{ srv_apps_root }}/core/nginx/snippets", mode: "0755" }
       - { path: "{{ srv_apps_root }}/core/nginx/acme", mode: "0755" }
+      - { path: "{{ srv_apps_root }}/core/coredns", mode: "0755" }
+      - { path: "{{ srv_apps_root }}/core/scripts", mode: "0755" }
+      - { path: "{{ srv_apps_root }}/core/seaweedfs", mode: "0755" }
+      - { path: "{{ srv_data_root }}/etcd/core-dns", mode: "0755" }
     staged_secret_files:
       - source_file: "{{ lookup('ansible.builtin.env', 'CORE_RUNTIME_ENV_SOURCE_FILE') | default('', true) }}"
         dest: "{{ srv_secrets_root }}/runtime/core.env"
@@ -28,6 +34,7 @@ deploy:
         recreate_services:
           - nginx
           - seaweedfs
+          - coredns
       - source_file: "{{ lookup('ansible.builtin.env', 'CORE_RUNTIME_SEAWEED_S3_SOURCE_FILE') | default('', true) }}"
         dest: "{{ srv_secrets_root }}/runtime/seaweed-s3.json"
         mode: "0600"
@@ -45,36 +52,18 @@ deploy:
         dest: "{{ srv_apps_root }}/core/nginx/snippets/private-access.conf"
         restart_services:
           - nginx
-
-  personal:
-    name: personal
-    project_dir: "{{ srv_apps_root }}/personal"
-    compose_files:
-      - src: "{{ playbook_dir }}/../../compose/projects/personal/compose.yml"
-        dest: "{{ srv_apps_root }}/personal/compose.yml"
-      - src: "{{ playbook_dir }}/../../compose/projects/personal/compose.prod.yml"
-        dest: "{{ srv_apps_root }}/personal/compose.prod.yml"
-    compose_cli_files:
-      - "{{ srv_apps_root }}/personal/compose.yml"
-      - "{{ srv_apps_root }}/personal/compose.prod.yml"
-    env_path: "{{ srv_secrets_root }}/runtime/personal.env"
-    compose_services:
-      - couchdb
-    directories:
-      - { path: "{{ srv_apps_root }}/personal/couchdb/local.d", mode: "0755" }
-    staged_secret_files:
-      - source_file: "{{ lookup('ansible.builtin.env', 'PERSONAL_RUNTIME_ENV_SOURCE_FILE') | default('', true) }}"
-        dest: "{{ srv_secrets_root }}/runtime/personal.env"
-        mode: "0600"
-        recreate_services:
-          - couchdb
-    required_files:
-      - "{{ srv_secrets_root }}/runtime/personal.env"
-    config_files:
-      - src: "{{ playbook_dir }}/../../compose/configs/couchdb/local.d/local.ini"
-        dest: "{{ srv_apps_root }}/personal/couchdb/local.d/local.ini"
+      - src: "{{ playbook_dir }}/../../compose/configs/coredns/Corefile"
+        dest: "{{ srv_apps_root }}/core/coredns/Corefile"
         restart_services:
-          - couchdb
+          - coredns
+      - src: "{{ playbook_dir }}/../../ops/scripts/runtime/sync-core-dns.sh"
+        dest: "{{ srv_apps_root }}/core/scripts/sync-core-dns.sh"
+        mode: "0755"
+      - src: "{{ playbook_dir }}/../../ops/scripts/runtime/apply-s3-buckets.py"
+        dest: "{{ srv_apps_root }}/core/scripts/apply-s3-buckets.py"
+        mode: "0755"
+      - src: "{{ playbook_dir }}/../../compose/configs/seaweedfs/buckets.json"
+        dest: "{{ srv_apps_root }}/core/seaweedfs/buckets.json"
 
   observability:
     name: observability

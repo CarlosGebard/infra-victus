@@ -19,9 +19,8 @@ Este repositorio define una infraestructura pequeña, separada por capas y por d
 - `core`
   - `nginx`
   - `seaweedfs`
-
-- `personal`
-  - `couchdb`
+  - `etcd`
+  - `coredns`
 
 - `observability`
   - `loki`
@@ -42,4 +41,6 @@ Ansible no bootstrappea el host; distribuye archivos del stack y ejecuta desplie
 ## Documentos clave
 
 - secrets y variables: [docs/secrets-and-variables.md](/home/carlos/victus/infra-victus/docs/secrets-and-variables.md)
+- contrato DNS privado: [docs/private-dns-contract.md](/home/carlos/victus/infra-victus/docs/private-dns-contract.md)
+- README en español: [docs/README.es.md](/home/carlos/victus/infra-victus/docs/README.es.md)
 - ADR estructura operativa: [docs/adr/0001-structure-decisions.md](/home/carlos/victus/infra-victus/docs/adr/0001-structure-decisions.md)

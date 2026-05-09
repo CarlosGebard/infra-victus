@@ -2,9 +2,9 @@
 
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 
-"$ROOT_DIR/compose/scripts/ensure-shared-network.sh"
+"$ROOT_DIR/ops/scripts/local/ensure-shared-network.sh"
 
 up_stack() {
   local stack="$1"
@@ -16,7 +16,6 @@ up_stack() {
   docker compose --env-file "$env_file" -f "$compose_base" -f "$compose_overlay" up -d
 }
 
-up_stack personal
 up_stack core
 up_stack observability
 

@@ -50,8 +50,6 @@ Estos valores sí deben salir desde Infisical.
 | `PROD_SSH_PRIVATE_KEY` | secreto | Llave privada SSH |
 | `PROD_SSH_PORT` | secreto operativo opcional | Puerto SSH si no es `22` |
 | `PROD_SSH_KNOWN_HOSTS` | secreto operativo opcional | Huella SSH fija para evitar `ssh-keyscan` |
-| `COUCHDB_USER` | secreto atómico | Usuario CouchDB usado para construir `.env` de `personal` |
-| `COUCHDB_PASSWORD` | secreto atómico | Password CouchDB usado para construir `.env` de `personal` |
 | `GRAFANA_ADMIN_PASSWORD` | secreto atómico | Password admin Grafana usado para construir `.env` de `observability` |
 | `SEAWEED_S3_ACCESS_KEY` | secreto atómico | Access key S3 usada para construir `seaweed-s3.json` |
 | `SEAWEED_S3_SECRET_KEY` | secreto atómico | Secret key S3 usada para construir `seaweed-s3.json` |
@@ -64,11 +62,27 @@ Hoy `core` solo usa:
 
 - `NGINX_BIND_IP`
 - `NGINX_HTTP_PORT`
+- `COREDNS_BIND_IP`
+- `COREDNS_DNS_PORT`
+- `TAILSCALE_INTERFACE`
+- `TAILSCALE_IPV4`
+- `DNS_ZONE`
+- `ETCD_PREFIX`
+- `DNS_TTL`
+- `S3_DOMAIN`
 
 Si variable no existe en GitHub Actions, workflow genera defaults:
 
 - `NGINX_BIND_IP=127.0.0.1`
 - `NGINX_HTTP_PORT=8080`
+- `COREDNS_BIND_IP=127.0.0.1` en local o IP Tailscale en servidor tras `sync-core-dns.sh`
+- `COREDNS_DNS_PORT=1053` en local o `53` en servidor tras `sync-core-dns.sh`
+- `TAILSCALE_INTERFACE=tailscale0`
+- `TAILSCALE_IPV4=` inicialmente vacío; script operacional lo detecta y escribe
+- `DNS_ZONE=victus.io`
+- `ETCD_PREFIX=/skydns`
+- `DNS_TTL=30`
+- `S3_DOMAIN=s3.victus.io`
 
 ### SeaweedFS
 
@@ -102,13 +116,6 @@ Contrato actual:
 }
 ```
 
-### `personal`
-
-Workflow construye `.env` desde:
-
-- `COUCHDB_USER`
-- `COUCHDB_PASSWORD`
-
 ### `observability`
 
 Workflow construye `.env` con defaults más:
@@ -132,6 +139,7 @@ Valor secreto requerido:
 - `deploy-all.yml` consume secretos atómicos y los materializa temporalmente en `/tmp`
 - Ansible copia esos archivos a `/srv/secrets/runtime/`
 - `deploy-observability.yml` también reaplica la configuración específica de Alloy para este stack
+- `ops/scripts/runtime/sync-core-dns.sh` completa y actualiza valores dinámicos no sensibles de `core.env`, recrea `coredns` si hace falta y luego escribe registros en `etcd`
 
 Referencias:
 
@@ -145,4 +153,4 @@ No mezclar dos fuentes de verdad para mismo valor.
 Ejemplo:
 
 - si `CORE_RUNTIME_ENV` vive en GitHub Actions, mantenerlo libre de secretos
-- no recrear blobs `PERSONAL_RUNTIME_ENV` u `OBSERVABILITY_RUNTIME_ENV` en Infisical
+- no recrear blobs `OBSERVABILITY_RUNTIME_ENV` en Infisical

@@ -1,0 +1,26 @@
+victus.io:53 {
+    errors
+    log
+    health 0.0.0.0:8080
+    ready 0.0.0.0:8181
+
+    template IN A s3.victus.io {
+        match ^(.+\.)?s3\.victus\.io\.$
+        answer "{{ .Name }} 30 IN A {$DNS_TARGET_IP}"
+    }
+
+    etcd victus.io {
+        path /skydns
+        endpoint http://etcd:2379
+    }
+
+    cache 30
+    loadbalance
+}
+
+. {
+    errors
+    log
+    forward . 1.1.1.1
+    cache 300
+}

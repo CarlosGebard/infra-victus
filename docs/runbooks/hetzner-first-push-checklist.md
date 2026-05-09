@@ -23,8 +23,6 @@ Los workflows de `infra-victus` siguen esperando exactamente estos nombres:
 - `PROD_SSH_PRIVATE_KEY`
 - `PROD_SSH_PORT`
 - `PROD_SSH_KNOWN_HOSTS`
-- `COUCHDB_USER`
-- `COUCHDB_PASSWORD`
 - `SEAWEED_S3_ACCESS_KEY`
 - `SEAWEED_S3_SECRET_KEY`
 - `GRAFANA_ADMIN_PASSWORD`

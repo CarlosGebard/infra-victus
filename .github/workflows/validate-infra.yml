@@ -14,6 +14,7 @@ on:
       - ".github/workflows/**"
       - "ansible/**"
       - "compose/**"
+      - "ops/**"
       - "tests/ansible/**"
   push:
     branches:
@@ -22,6 +23,7 @@ on:
       - ".github/workflows/**"
       - "ansible/**"
       - "compose/**"
+      - "ops/**"
       - "tests/ansible/**"
 
 concurrency:
@@ -70,6 +72,9 @@ jobs:
 
       - name: Validate Ansible integrity
         run: ./tests/ansible/check.sh
+
+      - name: Validate Compose integrity
+        run: make compose-validate
 
       - name: Assert Infisical bootstrap contract is reachable
         env:

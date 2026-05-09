@@ -8,7 +8,7 @@ Workflows manage infrastructure deployment via GitHub Actions + Infisical OIDC.
 
 | Workflow | Purpose | Trigger | Frequency |
 |----------|---------|---------|-----------|
-| **`deploy-all.yml`** | **Deploy all 3 stacks in correct order** | `push` to `main` on infra changes + manual dispatch | Production rollout |
+| **`deploy-all.yml`** | **Deploy all stacks in correct order** | `push` to `main` on infra changes + manual dispatch | Production rollout |
 | `validate-infra.yml` | Validate compose files + syntax | PR to `main`, `push` to `main`, manual dispatch | Each infra change |
 | `debug-*.yml` | Troubleshooting utilities | Manual dispatch | Debugging only |
 
@@ -24,7 +24,7 @@ Workflows manage infrastructure deployment via GitHub Actions + Infisical OIDC.
    └─ One-time: Docker, Tailscale, Alloy package, base directories
 
 3. deploy-all.yml
-   └─ Repeatable: Deploy apps (observability → personal → core)
+   └─ Repeatable: Deploy apps (observability → core)
 ```
 
 ### Subsequent Updates
@@ -46,12 +46,10 @@ push to main
 validate (all secrets + syntax)
     ↓
 deploy-observability (loki, prometheus, grafana)
-    ├─ parallel with:
-deploy-personal (couchdb)
     ↓
 deploy-core (nginx, seaweedfs)
     ↓
-verify (all 6 services healthy)
+verify (services healthy)
 ```
 
 **Triggers**:
@@ -63,7 +61,7 @@ verify (all 6 services healthy)
 - `auto_rollback` (manual only, optional): Rollback on failure (currently informational)
 
 **Outputs**:
-- ✓ All 6 containers running
+- ✓ Containers running
 - ✓ Logs available in GitHub Actions
 
 **Concurrency**: Prevents parallel deployments (lock on `production-deploy-all`)
@@ -105,9 +103,6 @@ PROD_SSH_KNOWN_HOSTS         # Optional: ssh-keyscan output
 SEAWEED_S3_ACCESS_KEY        # SeaweedFS S3 credentials
 SEAWEED_S3_SECRET_KEY
 
-COUCHDB_USER                 # CouchDB credentials
-COUCHDB_PASSWORD
-
 GRAFANA_ADMIN_PASSWORD       # Grafana admin password
 ```
 
@@ -133,7 +128,6 @@ docker compose --env-file .env.test \
 
 Workflows materialize runtime files at `/tmp/`:
 - `/tmp/core-runtime.env`
-- `/tmp/personal-runtime.env`
 - `/tmp/observability-runtime.env`
 - `/tmp/seaweed-s3.json`
 
@@ -152,10 +146,9 @@ Ansible copies to `/srv/` and executes `docker compose up -d`.
 
 ### Post-Deployment Checks
 
-Verifies all 6 containers running:
+Verifies expected containers running:
 - nginx
 - seaweedfs
-- couchdb
 - loki
 - prometheus
 - grafana
@@ -180,7 +173,7 @@ Verifies all 6 containers running:
 ### "Deployment succeeded but services not running"
 
 **Check**:
-1. Verify step shows 6 containers running
+1. Verify step shows expected containers running
 2. SSH to host: `docker ps -a`
 3. Check logs: `docker logs <container-name>`
 
@@ -234,10 +227,9 @@ gh run watch <run-id>
 
 - **Validate**: 2-3 min
 - **Deploy observability**: 4-5 min
-- **Deploy personal**: 3-4 min
 - **Deploy core**: 4-5 min
 - **Verify**: 1-2 min
-- **Total**: 15-20 minutes
+- **Total**: 12-16 minutes
 
 ## Adding New Stacks
 

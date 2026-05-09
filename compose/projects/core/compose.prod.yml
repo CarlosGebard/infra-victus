@@ -15,3 +15,14 @@ services:
     volumes:
       - /srv/data/seaweed/data:/data
       - /srv/secrets/runtime/seaweed-s3.json:/run/secrets/seaweed-s3.json:ro
+
+  etcd:
+    volumes:
+      - /srv/data/etcd/core-dns:/etcd-data
+
+  coredns:
+    ports:
+      - "${COREDNS_BIND_IP:-0.0.0.0}:${COREDNS_DNS_PORT:-53}:53/tcp"
+      - "${COREDNS_BIND_IP:-0.0.0.0}:${COREDNS_DNS_PORT:-53}:53/udp"
+    volumes:
+      - /srv/apps/core/coredns/Corefile:/etc/coredns/Corefile:ro

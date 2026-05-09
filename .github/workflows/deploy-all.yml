@@ -22,6 +22,7 @@ on:
       - ".github/workflows/**"
       - "ansible/**"
       - "compose/**"
+      - "ops/**"
       - "tests/ansible/**"
 
 concurrency:
@@ -69,7 +70,6 @@ jobs:
           set -euo pipefail
           
           bash tests/ansible/deploy-syntax-check.sh
-          bash tests/ansible/deploy-personal-syntax-check.sh
           bash tests/ansible/deploy-observability-syntax-check.sh
           bash tests/ansible/preflight-syntax-check.sh
           bash tests/ansible/review-syntax-check.sh
@@ -78,16 +78,12 @@ jobs:
         run: |
           set -euo pipefail
 
-          docker compose -f compose/projects/core/compose.yml -f compose/projects/core/compose.prod.yml config > /dev/null
-          docker compose -f compose/projects/personal/compose.yml -f compose/projects/personal/compose.prod.yml config > /dev/null
-          docker compose -f compose/projects/observability/compose.yml -f compose/projects/observability/compose.prod.yml config > /dev/null
+          make compose-validate
 
       - name: Assert all required secrets present
         env:
           PROD_HOST: ${{ env.PROD_HOST }}
           PROD_SSH_PRIVATE_KEY: ${{ env.PROD_SSH_PRIVATE_KEY }}
-          COUCHDB_PASSWORD: ${{ env.COUCHDB_PASSWORD }}
-          COUCHDB_USER: ${{ env.COUCHDB_USER }}
           GRAFANA_ADMIN_PASSWORD: ${{ env.GRAFANA_ADMIN_PASSWORD }}
           SEAWEED_S3_ACCESS_KEY: ${{ env.SEAWEED_S3_ACCESS_KEY }}
           SEAWEED_S3_SECRET_KEY: ${{ env.SEAWEED_S3_SECRET_KEY }}
@@ -103,10 +99,6 @@ jobs:
           # Core secrets
           [[ -n "${SEAWEED_S3_ACCESS_KEY}" ]] || errors+=("Missing SEAWEED_S3_ACCESS_KEY")
           [[ -n "${SEAWEED_S3_SECRET_KEY}" ]] || errors+=("Missing SEAWEED_S3_SECRET_KEY")
-          
-          # Personal secrets
-          [[ -n "${COUCHDB_USER}" ]] || errors+=("Missing COUCHDB_USER")
-          [[ -n "${COUCHDB_PASSWORD}" ]] || errors+=("Missing COUCHDB_PASSWORD")
           
           # Observability secrets
           [[ -n "${GRAFANA_ADMIN_PASSWORD}" ]] || errors+=("Missing GRAFANA_ADMIN_PASSWORD")
@@ -269,96 +261,9 @@ jobs:
             -i /tmp/deploy-hosts.yml \
             playbooks/deploy-observability.yml
 
-  deploy-personal:
-    name: Deploy Personal Stack
-    needs: preflight
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    environment: production
-    permissions:
-      contents: read
-      id-token: write
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v5
-        with:
-          ref: ${{ env.DEPLOY_GIT_REF }}
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Pull secrets from Infisical
-        uses: Infisical/secrets-action@v1.0.10
-        with:
-          method: "oidc"
-          identity-id: "${{ vars.INFISICAL_IDENTITY_ID }}"
-          project-slug: "${{ vars.INFISICAL_PROJECT_SLUG }}"
-          env-slug: "${{ vars.INFISICAL_ENV_SLUG }}"
-          secret-path: "${{ vars.INFISICAL_SECRET_PATH }}"
-
-      - name: Install Ansible
-        run: python -m pip install --upgrade pip ansible-core
-
-      - name: Prepare SSH material
-        env:
-          PROD_HOST: ${{ env.PROD_HOST }}
-          PROD_SSH_KNOWN_HOSTS: ${{ env.PROD_SSH_KNOWN_HOSTS }}
-          PROD_SSH_PORT: ${{ env.PROD_SSH_PORT }}
-          PROD_SSH_PRIVATE_KEY: ${{ env.PROD_SSH_PRIVATE_KEY }}
-        run: |
-          set -euo pipefail
-          bash .github/scripts/prepare-ssh.sh
-
-      - name: Materialize personal runtime env
-        env:
-          COUCHDB_USER: ${{ env.COUCHDB_USER }}
-          COUCHDB_PASSWORD: ${{ env.COUCHDB_PASSWORD }}
-        run: |
-          set -euo pipefail
-          
-          printf '%s\n' \
-            "COUCHDB_USER=${COUCHDB_USER}" \
-            "COUCHDB_PASSWORD=${COUCHDB_PASSWORD}" \
-            > /tmp/personal-runtime.env
-          chmod 600 /tmp/personal-runtime.env
-
-      - name: Build inventory
-        env:
-          PROD_HOST: ${{ env.PROD_HOST }}
-          PROD_SSH_PORT: ${{ env.PROD_SSH_PORT }}
-        run: |
-          set -euo pipefail
-          bash .github/scripts/build-deploy-inventory.sh
-
-      - name: Validate personal deploy files exist
-        run: |
-          set -euo pipefail
-          
-          echo "Checking required files for personal deployment..."
-          [[ -f /tmp/personal-runtime.env ]] || { echo "✗ Missing /tmp/personal-runtime.env"; exit 1; }
-          [[ -f /tmp/deploy-hosts.yml ]] || { echo "✗ Missing /tmp/deploy-hosts.yml"; exit 1; }
-          
-          echo "✓ All files present"
-
-      - name: Deploy personal
-        env:
-          ANSIBLE_HOST_KEY_CHECKING: "true"
-          PERSONAL_RUNTIME_ENV_SOURCE_FILE: /tmp/personal-runtime.env
-        run: |
-          set -euo pipefail
-          
-          cd ansible
-          
-          ansible-playbook \
-            -i /tmp/deploy-hosts.yml \
-            playbooks/deploy-personal.yml
-
   deploy-core:
     name: Deploy Core Stack
-    needs: [deploy-observability, deploy-personal]
+    needs: [deploy-observability]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: production
@@ -575,7 +480,6 @@ jobs:
           
           Deployed stacks:
           - observability (Loki, Prometheus, Grafana)
-          - personal (CouchDB)
           - core (Nginx, SeaweedFS)
           
           Next steps:
@@ -586,7 +490,7 @@ jobs:
 
   notify-failure:
     name: Notify deployment failure
-    needs: [validate, deploy-observability, deploy-personal, deploy-core, verify]
+    needs: [validate, deploy-observability, deploy-core, verify]
     runs-on: ubuntu-latest
     if: failure()
 

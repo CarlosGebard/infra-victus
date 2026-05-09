@@ -29,7 +29,7 @@ Razón:
 
 - bootstrap toca lifecycle sensible del servidor y debe seguir manual
 - deploy del stack tiene source of truth en git y conviene que reaccione al merge
-- `deploy-all.yml` ya respeta orden `observability -> personal -> core`
+- `deploy-all.yml` ya respeta orden `observability -> core`
 - los filtros de paths reducen ejecuciones innecesarias
 
 Esto mantiene claro el flujo:
@@ -64,7 +64,6 @@ Razón:
 Se mantiene separación lógica por stack:
 
 - `core`
-- `personal`
 - `observability`
 
 `deploy-all.yml` orquesta el rollout completo y automático cuando corresponde.

@@ -11,7 +11,6 @@
       - "seaweed.{{ lookup('ansible.builtin.env', 'BASE_DOMAIN') | default('', true) }}"
       - "filer.{{ lookup('ansible.builtin.env', 'BASE_DOMAIN') | default('', true) }}"
       - "s3.{{ lookup('ansible.builtin.env', 'BASE_DOMAIN') | default('', true) }}"
-      - "couchdb.{{ lookup('ansible.builtin.env', 'BASE_DOMAIN') | default('', true) }}"
     core_cert_name: "core-edge-{{ (lookup('ansible.builtin.env', 'BASE_DOMAIN') | default('', true)) | replace('.', '-') }}"
     deploy_core_compose_args: >-
       {{
@@ -111,7 +110,6 @@
     seaweed_domain: "{{ core_public_domains[0] }}"
     filer_domain: "{{ core_public_domains[1] }}"
     s3_domain: "{{ core_public_domains[2] }}"
-    couchdb_domain: "{{ core_public_domains[3] }}"
     core_cert_name: "{{ core_cert_name }}"
     core_tls_enabled: "{{ core_tls_cert.stat.exists }}"
   register: deploy_core_nginx_template_pre_tls
@@ -150,6 +148,11 @@
 - name: Validate SeaweedFS S3 runtime config is valid JSON
   ansible.builtin.command:
     cmd: python3 -m json.tool {{ srv_secrets_root }}/runtime/seaweed-s3.json
+  changed_when: false
+
+- name: Validate SeaweedFS bucket contract is valid JSON
+  ansible.builtin.command:
+    cmd: python3 -m json.tool {{ deploy_stack.project_dir }}/seaweedfs/buckets.json
   changed_when: false
 
 - name: Read SeaweedFS S3 runtime config
@@ -231,7 +234,6 @@
     seaweed_domain: "{{ core_public_domains[0] }}"
     filer_domain: "{{ core_public_domains[1] }}"
     s3_domain: "{{ core_public_domains[2] }}"
-    couchdb_domain: "{{ core_public_domains[3] }}"
     core_cert_name: "{{ core_cert_name }}"
     core_tls_enabled: true
   register: deploy_core_nginx_template_tls
@@ -319,3 +321,28 @@
   when: deploy_core_restart_services | length > 0
   register: deploy_core_restart
   changed_when: deploy_core_restart_services | length > 0
+
+- name: Sync core private DNS records
+  ansible.builtin.command:
+    cmd: "{{ deploy_stack.project_dir }}/scripts/sync-core-dns.sh"
+  environment:
+    CORE_ENV_FILE: "{{ deploy_stack.env_path }}"
+    CORE_COMPOSE_OVERLAY: "{{ deploy_stack.project_dir }}/compose.prod.yml"
+  register: deploy_core_dns_sync
+  changed_when: "'Updated records:' in deploy_core_dns_sync.stdout"
+
+- name: Apply SeaweedFS S3 bucket contract
+  ansible.builtin.command:
+    cmd: >-
+      docker run --rm
+      --network core_core_backend
+      -v {{ deploy_stack.project_dir }}/scripts/apply-s3-buckets.py:/apply-s3-buckets.py:ro
+      -v {{ deploy_stack.project_dir }}/seaweedfs/buckets.json:/buckets.json:ro
+      -v {{ srv_secrets_root }}/runtime/seaweed-s3.json:/seaweed-s3.json:ro
+      python:3.12-alpine
+      python /apply-s3-buckets.py
+      --contract /buckets.json
+      --seaweed-s3-config /seaweed-s3.json
+      --endpoint http://seaweedfs:8333
+  register: deploy_core_s3_buckets
+  changed_when: "'[CREATE]' in deploy_core_s3_buckets.stdout"

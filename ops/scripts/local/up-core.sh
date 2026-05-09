@@ -1,0 +1,102 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+ENV_FILE="$ROOT_DIR/compose/projects/core/.env"
+COMPOSE_BASE="$ROOT_DIR/compose/projects/core/compose.yml"
+COMPOSE_OVERLAY="$ROOT_DIR/compose/projects/core/compose.dev.yml"
+LOCAL_DNS_BIND="${LOCAL_DNS_BIND:-loopback}"
+COMPOSE_ARGS=()
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --tailscale)
+      LOCAL_DNS_BIND="tailscale"
+      shift
+      ;;
+    --localhost|--loopback)
+      LOCAL_DNS_BIND="loopback"
+      shift
+      ;;
+    --)
+      shift
+      COMPOSE_ARGS+=("$@")
+      break
+      ;;
+    *)
+      COMPOSE_ARGS+=("$1")
+      shift
+      ;;
+  esac
+done
+
+tailscale_ipv4() {
+  ip -4 addr show dev "$TAILSCALE_INTERFACE" | awk '/inet / {print $2}' | cut -d/ -f1 | head -n1
+}
+
+write_managed_env_block() {
+  local tmp_file
+
+  tmp_file="$(mktemp)"
+  awk '
+    BEGIN { skip=0 }
+    /^# BEGIN managed: core-private-dns$/ { skip=1; next }
+    /^# END managed: core-private-dns$/ { skip=0; next }
+    skip == 0 { print }
+  ' "$ENV_FILE" > "$tmp_file"
+
+  cat >> "$tmp_file" <<EOF
+# BEGIN managed: core-private-dns
+TAILSCALE_INTERFACE=$TAILSCALE_INTERFACE
+TAILSCALE_IPV4=$TAILSCALE_IPV4
+DNS_ZONE=${DNS_ZONE:-victus.io}
+ETCD_PREFIX=${ETCD_PREFIX:-/skydns}
+DNS_TTL=${DNS_TTL:-30}
+COREDNS_BIND_IP=$COREDNS_BIND_IP
+COREDNS_DNS_PORT=$COREDNS_DNS_PORT
+NGINX_BIND_IP=$NGINX_BIND_IP
+NGINX_HTTP_PORT=$NGINX_HTTP_PORT
+S3_DOMAIN=${S3_DOMAIN:-s3.${DNS_ZONE:-victus.io}}
+# END managed: core-private-dns
+EOF
+
+  mv "$tmp_file" "$ENV_FILE"
+  chmod 600 "$ENV_FILE"
+}
+
+"$ROOT_DIR/ops/scripts/local/ensure-shared-network.sh"
+
+if [[ "$LOCAL_DNS_BIND" == "tailscale" ]]; then
+  export TAILSCALE_INTERFACE="${TAILSCALE_INTERFACE:-tailscale0}"
+  export TAILSCALE_IPV4="${TAILSCALE_IPV4:-$(tailscale_ipv4)}"
+  if [[ -z "$TAILSCALE_IPV4" ]]; then
+    echo "[ERROR] No IPv4 found on interface $TAILSCALE_INTERFACE" >&2
+    exit 1
+  fi
+  export COREDNS_DNS_PORT="${COREDNS_DNS_PORT:-53}"
+  export COREDNS_BIND_IP="${COREDNS_BIND_IP:-$TAILSCALE_IPV4}"
+  export NGINX_BIND_IP="${NGINX_BIND_IP:-$TAILSCALE_IPV4}"
+  export NGINX_HTTP_PORT="${NGINX_HTTP_PORT:-8080}"
+  RECREATE_BOUND_SERVICES=1
+else
+  export TAILSCALE_INTERFACE="${TAILSCALE_INTERFACE:-lo}"
+  export TAILSCALE_IPV4="${TAILSCALE_IPV4:-127.0.0.1}"
+  export COREDNS_DNS_PORT="${COREDNS_DNS_PORT:-1053}"
+  export COREDNS_BIND_IP="${COREDNS_BIND_IP:-127.0.0.1}"
+  export NGINX_BIND_IP="${NGINX_BIND_IP:-127.0.0.1}"
+  export NGINX_HTTP_PORT="${NGINX_HTTP_PORT:-8080}"
+  RECREATE_BOUND_SERVICES=0
+fi
+
+write_managed_env_block
+
+if [[ "$RECREATE_BOUND_SERVICES" -eq 1 ]]; then
+  docker compose --env-file "$ENV_FILE" -f "$COMPOSE_BASE" -f "$COMPOSE_OVERLAY" up -d --force-recreate nginx coredns "${COMPOSE_ARGS[@]}"
+else
+  docker compose --env-file "$ENV_FILE" -f "$COMPOSE_BASE" -f "$COMPOSE_OVERLAY" up -d "${COMPOSE_ARGS[@]}"
+fi
+
+CORE_ENV_FILE="$ENV_FILE" \
+CORE_COMPOSE_OVERLAY="$COMPOSE_OVERLAY" \
+"$ROOT_DIR/ops/scripts/runtime/sync-core-dns.sh"

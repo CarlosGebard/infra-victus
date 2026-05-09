@@ -53,7 +53,6 @@ validate_nginx() {
 
 	log "Validating nginx config"
 	docker run --rm \
-		--add-host couchdb:127.0.0.1 \
 		--add-host seaweedfs:127.0.0.1 \
 		--add-host grafana:127.0.0.1 \
 		--add-host prometheus:127.0.0.1 \
@@ -64,23 +63,42 @@ validate_nginx() {
 		nginx:1.28.3-alpine nginx -t
 }
 
+validate_coredns() {
+	local coredns_corefile="$ROOT_DIR/compose/configs/coredns/Corefile"
+	local status=0
+
+	require_file "$coredns_corefile"
+
+	log "Validating CoreDNS Corefile"
+	timeout 3s docker run --rm \
+		-v "$coredns_corefile:/etc/coredns/Corefile:ro" \
+		coredns/coredns:1.14.2 -conf /etc/coredns/Corefile -dns.port 1053 >/dev/null 2>&1 || status=$?
+	[[ "$status" -eq 124 ]] || err "CoreDNS Corefile validation failed"
+}
+
 validate_seaweed_s3_config() {
 	local s3_config="$ROOT_DIR/compose/configs/seaweedfs/s3.json.example"
+	local buckets_config="$ROOT_DIR/compose/configs/seaweedfs/buckets.json"
 
 	require_file "$s3_config"
+	require_file "$buckets_config"
 
 	log "Validating SeaweedFS S3 config example"
 	python3 -m json.tool "$s3_config" >/dev/null
+
+	log "Validating SeaweedFS bucket contract"
+	python3 -m json.tool "$buckets_config" >/dev/null
+	python3 -m py_compile "$ROOT_DIR/ops/scripts/runtime/apply-s3-buckets.py"
 }
 
 validate_required_dirs() {
 	local dirs=(
 		"$ROOT_DIR/compose/.tmp/core/nginx/logs"
 		"$ROOT_DIR/compose/.tmp/core/seaweedfs/data"
+		"$ROOT_DIR/compose/.tmp/core/etcd/data"
 		"$ROOT_DIR/compose/.tmp/observability/grafana"
 		"$ROOT_DIR/compose/.tmp/observability/loki"
 		"$ROOT_DIR/compose/.tmp/observability/prometheus"
-		"$ROOT_DIR/compose/.tmp/personal/couchdb/data"
 	)
 
 	for dir in "${dirs[@]}"; do
@@ -90,11 +108,12 @@ validate_required_dirs() {
 
 require_cmd docker
 require_cmd python3
-validate_stack personal
+require_cmd timeout
 validate_stack core
 validate_stack observability
 validate_required_dirs
 validate_seaweed_s3_config
 validate_nginx
+validate_coredns
 
 log "Local validation OK"

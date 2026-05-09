@@ -5,3 +5,6 @@ AGENTS.md
 TASKS.MD
 TASKS.md
 tasks.md
+.env
+__pycache__/
+*.py[cod]

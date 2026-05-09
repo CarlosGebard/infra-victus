@@ -12,8 +12,6 @@ Infra-Victus uses deployment workflows:
 ```
 observability (baseline monitoring)
     ↓
-personal (independent services)
-    ↓
 core (app layer, depends on observability)
 ```
 
@@ -41,12 +39,11 @@ Use **`deploy-all.yml`** workflow:
    ```
    validate (all secrets, syntax, docker-compose)
        ↓
-   deploy-observability (parallel with personal)
-   deploy-personal      (parallel with observability)
+   deploy-observability
        ↓
-   deploy-core (waits for both above)
+   deploy-core
        ↓
-   verify (all 6 services running)
+   verify (services running)
    ```
 
 4. **Timeline**: ~15-20 minutes total
@@ -83,8 +80,6 @@ All secrets fetched via Infisical + OIDC at runtime. None stored in GitHub.
 | `PROD_SSH_KNOWN_HOSTS` | All | Infisical env (optional) |
 | `SEAWEED_S3_ACCESS_KEY` | core | Infisical env |
 | `SEAWEED_S3_SECRET_KEY` | core | Infisical env |
-| `COUCHDB_USER` | personal | Infisical env |
-| `COUCHDB_PASSWORD` | personal | Infisical env |
 | `GRAFANA_ADMIN_PASSWORD` | observability | Infisical env |
 
 **Verify before deploying**:
@@ -94,18 +89,15 @@ All secrets fetched via Infisical + OIDC at runtime. None stored in GitHub.
 ✓ PROD_SSH_PRIVATE_KEY
 ✓ SEAWEED_S3_ACCESS_KEY
 ✓ SEAWEED_S3_SECRET_KEY
-✓ COUCHDB_USER
-✓ COUCHDB_PASSWORD
 ✓ GRAFANA_ADMIN_PASSWORD
 ```
 
 ## Post-Deployment Verification
 
-Workflows automatically verify all 6 services running:
+Workflows automatically verify expected services running:
 
 - nginx ✓
 - seaweedfs ✓
-- couchdb ✓
 - loki ✓
 - prometheus ✓
 - grafana ✓
@@ -115,7 +107,7 @@ Manual verification:
 ssh carlos@<PROD_HOST> "docker ps --all"
 ```
 
-Expected output: 6 containers with status `running`
+Expected output: project containers with status `running`
 
 ## Rollback
 
@@ -251,7 +243,6 @@ VPS:/srv/
     ↓
 Docker Compose
     ├── core/          (nginx, seaweedfs)
-    ├── personal/      (couchdb)
     └── observability/ (loki, prometheus, grafana)
 ```
 

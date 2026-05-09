@@ -57,8 +57,7 @@ Razón:
 ## Orden recomendado
 
 1. `observability`
-2. `personal`
-3. `core`
+2. `core`
 
 ## Secretos esperados
 
@@ -83,9 +82,7 @@ Por stack:
   - `CORE_RUNTIME_ENV` en GitHub Actions solo si no tiene secretos
   - `SEAWEED_S3_ACCESS_KEY`
   - `SEAWEED_S3_SECRET_KEY`
-- `personal`
-  - `COUCHDB_USER`
-  - `COUCHDB_PASSWORD`
+  - opcionales: `COREDNS_BIND_IP`, `COREDNS_DNS_PORT`
 - `observability`
   - `GRAFANA_ADMIN_PASSWORD`
 
@@ -99,16 +96,17 @@ Deploy de `core` sí deja listo el runtime S3 de SeaweedFS:
 - valida que el archivo sea JSON válido antes de correr `docker compose up`
 - exige al menos una credencial con `accessKey` y `secretKey`
 
-Lo que todavía no hace el repo:
+El repo también aplica contrato declarativo de buckets S3:
 
-- no crea buckets automáticamente
-- no versiona una lista declarativa de buckets
-- no aplica políticas por bucket desde Ansible
+- contrato: `compose/configs/seaweedfs/buckets.json`
+- script runtime: `ops/scripts/runtime/apply-s3-buckets.py`
+- deploy lo ejecuta contra endpoint interno `http://seaweedfs:8333`
 
 Implicancia operativa:
 
-- hoy la IaC configura autenticación S3, no aprovisionamiento de buckets
-- si un servicio necesita buckets precreados, hay que crearlos explícitamente después del deploy usando un cliente S3 compatible o una automatización aparte
+- buckets y prefixes declarados se crean de forma idempotente
+- prefixes se materializan con objeto `.keep`
+- el deploy no borra buckets, prefixes ni objetos no declarados
 - si `seaweedfs` no arranca, revisar primero `/srv/secrets/runtime/seaweed-s3.json`; credencial faltante, JSON inválido o permisos distintos de `1000:1000` y `0400` deben tratarse como error de deploy
 
 ## Validación mínima antes de push
@@ -133,9 +131,6 @@ Mapa actual:
   - `nginx.conf` o `nginx/conf.d/core.conf` -> restart `nginx`
   - `core.env` -> recreate `nginx`, `seaweedfs`
   - `seaweed-s3.json` -> recreate `seaweedfs`
-- `personal`
-  - `local.ini` -> restart `couchdb`
-  - `personal.env` -> recreate `couchdb`
 - `observability`
   - `loki/config.yml` -> restart `loki`
   - `prometheus/prometheus.yml` -> restart `prometheus`
@@ -151,24 +146,94 @@ Razón:
 
 Política actual de edge:
 
-- `couchdb.{{ BASE_DOMAIN }}` queda público por NGINX
-- rutas `/seaweed/master/`, `/seaweed/filer/`, `/seaweed/s3/`, `/grafana/`, `/prometheus/`, `/loki/` solo aceptan origen Tailscale
+- rutas `/seaweed/master/`, `/seaweed/filer/`, `/grafana/`, `/prometheus/`, `/loki/` solo aceptan origen Tailscale
+- S3 usa virtual-host style por `s3.victus.io` y `*.s3.victus.io`
 - server blocks `seaweed.*`, `filer.*`, `s3.*` también quedan restringidos a rangos Tailscale `100.64.0.0/10` y `fd7a:115c:a1e0::/48`
 
 Nota:
 
 - acceso privado esperado para servicios no públicos: entrar por IP o hostname Tailscale del VPS y usar rutas proxy de NGINX
-- acceso S3 path-style soportado para setup pequeño: `http://<magicdns-host>/seaweed/s3/`
-- ejemplo AWS CLI: `aws --endpoint-url http://<magicdns-host>/seaweed/s3 s3 ls`
-- algunos clientes S3 avanzados o URLs prefirmadas siguen siendo más compatibles con hostname dedicado al root en vez de path prefix
+- endpoint S3 privado esperado: `http://s3.victus.io`
+- ejemplo AWS CLI: `aws --endpoint-url http://s3.victus.io s3 ls`
+- buckets virtual-host style usan `<bucket>.s3.victus.io`
 - path `/.well-known/acme-challenge/` sigue público para certbot HTTP-01
 
 ## Nota operacional
 
-`core` despliega la config edge de NGINX. Esa config referencia `couchdb`, `grafana`, `prometheus` y `loki`, así que no conviene desplegar `core` primero.
+`core` despliega la config edge de NGINX. Esa config referencia `grafana`, `prometheus` y `loki`, así que no conviene desplegar `core` primero.
 
-`infra_shared_backend` es red Docker compartida entre stacks. Debe existir antes de cualquier `docker compose up`. Localmente, `compose/scripts/up-local.sh` y `compose/scripts/up-core.sh` la crean si falta. En servidor, `deploy/shared` la asegura antes de validar o desplegar stack.
+`infra_shared_backend` es red Docker compartida entre stacks. Debe existir antes de cualquier `docker compose up`. Localmente, `ops/scripts/local/up-local.sh` y `ops/scripts/local/up-core.sh` la crean si falta. En servidor, `deploy/shared` la asegura antes de validar o desplegar stack.
 
 `deploy-all.yml` quedó como pipeline CD principal. En `push` a `main` corre automáticamente solo cuando cambian archivos de infraestructura. Si environment `production` exige aprobación manual en GitHub, workflow quedará pausado ahí hasta aprobar.
 
 Primer deploy TLS para `seaweed.{{ BASE_DOMAIN }}` requiere reachability pública en `80/tcp` y `443/tcp`. `core` sube primero con HTTP + challenge webroot, `certbot` emite cert, luego mismo deploy reprocesa nginx con TLS activo.
+
+## DNS privado `victus.io`
+
+`core` ahora incluye:
+
+- `etcd` interno para backend SkyDNS en `/skydns`
+- `coredns` para zona privada `victus.io`
+
+Archivos operativos relevantes:
+
+- `compose/configs/coredns/Corefile`
+- `ops/scripts/runtime/sync-core-dns.sh`
+- `core.env`
+
+Registros manejados por script:
+
+- `s3.victus.io -> <tailscale-ip>`
+- `*.s3.victus.io -> <tailscale-ip>` por template CoreDNS
+
+Motivo de TTL corto:
+
+- `tailscale0` puede cambiar IP en eventos de red o reprovisión
+- `ttl=30` reduce tiempo de cache vieja en clientes
+- subir TTL reduce queries pero empeora convergencia tras cambio de IP
+
+Flujo recomendado post-deploy en servidor:
+
+```bash
+cd /srv/apps/core
+./scripts/sync-core-dns.sh
+```
+
+El deploy de `core` ejecuta este script al final. El comando manual sirve para repoblar DNS tras cambios de IP Tailscale o pruebas operativas.
+
+Efecto del script:
+
+- detecta IP actual de `tailscale0`
+- actualiza `core.env` con variables DNS/Tailscale no sensibles
+- recrea `coredns` para tomar `COREDNS_BIND_IP` y `COREDNS_DNS_PORT`
+- escribe registro SkyDNS de `s3.victus.io` en `etcd`
+- recrea `coredns` para que el template wildcard use la IP actual
+
+Si necesitas overlay de producción explícito:
+
+```bash
+CORE_COMPOSE_OVERLAY=/srv/apps/core/compose.prod.yml \
+CORE_ENV_FILE=/srv/secrets/runtime/core.env \
+./scripts/sync-core-dns.sh
+```
+
+Verificación manual:
+
+```bash
+dig @<tailscale-ip-del-vps> -p 53 s3.victus.io
+dig @<tailscale-ip-del-vps> -p 53 any-bucket.s3.victus.io
+```
+
+Prueba local por Tailscale desde otro nodo:
+
+```bash
+make core-up-tailscale
+dig @<tailscale-ip-local> s3.victus.io
+dig @<tailscale-ip-local> any-bucket.s3.victus.io
+```
+
+Notas:
+
+- `coredns` hace `forward` de consultas fuera de `victus.io` a `1.1.1.1`
+- si host ya usa puerto `53`, ajustar `COREDNS_BIND_IP` o `COREDNS_DNS_PORT`
+- `etcd` no se publica al host; gestión ocurre vía `docker compose exec etcd etcdctl`

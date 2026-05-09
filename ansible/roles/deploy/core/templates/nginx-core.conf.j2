@@ -20,12 +20,6 @@ server {
     return 404;
   }
 
-  location /couchdb/ {
-    include /etc/nginx/snippets/private-access.conf;
-    set $upstream couchdb:5984;
-    proxy_pass http://$upstream/;
-  }
-
   location /seaweed/master/ {
     include /etc/nginx/snippets/private-access.conf;
     set $upstream seaweedfs:9333;
@@ -35,13 +29,6 @@ server {
   location /seaweed/filer/ {
     include /etc/nginx/snippets/private-access.conf;
     set $upstream seaweedfs:8888;
-    proxy_pass http://$upstream/;
-  }
-
-  location /seaweed/s3/ {
-    include /etc/nginx/snippets/private-access.conf;
-    proxy_set_header Host $host;
-    set $upstream seaweedfs:8333;
     proxy_pass http://$upstream/;
   }
 
@@ -120,7 +107,7 @@ server {
 
 server {
   listen 80;
-  server_name {{ s3_domain }};
+  server_name s3.victus.io *.s3.victus.io {{ s3_domain }};
 
   resolver 127.0.0.11 valid=10s ipv6=off;
   resolver_timeout 5s;
@@ -138,32 +125,10 @@ server {
 {% else %}
   location / {
     include /etc/nginx/snippets/private-access.conf;
-    proxy_set_header Host $host;
+    proxy_set_header Host $http_host;
+    proxy_set_header X-Forwarded-Host $http_host;
+    proxy_set_header X-Forwarded-Proto $scheme;
     set $upstream seaweedfs:8333;
-    proxy_pass http://$upstream;
-  }
-{% endif %}
-}
-
-server {
-  listen 80;
-  server_name {{ couchdb_domain }};
-
-  resolver 127.0.0.11 valid=10s ipv6=off;
-  resolver_timeout 5s;
-
-  location ^~ /.well-known/acme-challenge/ {
-    root /var/www/certbot;
-    try_files $uri =404;
-  }
-
-{% if core_tls_enabled | bool %}
-  location / {
-    return 301 https://$host$request_uri;
-  }
-{% else %}
-  location / {
-    set $upstream couchdb:5984;
     proxy_pass http://$upstream;
   }
 {% endif %}
@@ -214,7 +179,7 @@ server {
 
 server {
   listen 443 ssl;
-  server_name {{ s3_domain }};
+  server_name s3.victus.io *.s3.victus.io {{ s3_domain }};
 
   resolver 127.0.0.11 valid=10s ipv6=off;
   resolver_timeout 5s;
@@ -228,29 +193,12 @@ server {
 
   location / {
     include /etc/nginx/snippets/private-access.conf;
-    proxy_set_header Host $host;
+    proxy_set_header Host $http_host;
+    proxy_set_header X-Forwarded-Host $http_host;
+    proxy_set_header X-Forwarded-Proto $scheme;
     set $upstream seaweedfs:8333;
     proxy_pass http://$upstream;
   }
 }
 
-server {
-  listen 443 ssl;
-  server_name {{ couchdb_domain }};
-
-  resolver 127.0.0.11 valid=10s ipv6=off;
-  resolver_timeout 5s;
-
-  ssl_certificate /etc/letsencrypt/live/{{ core_cert_name }}/fullchain.pem;
-  ssl_certificate_key /etc/letsencrypt/live/{{ core_cert_name }}/privkey.pem;
-  ssl_session_cache shared:SSL:10m;
-  ssl_session_timeout 10m;
-  ssl_protocols TLSv1.2 TLSv1.3;
-  ssl_prefer_server_ciphers off;
-
-  location / {
-    set $upstream couchdb:5984;
-    proxy_pass http://$upstream;
-  }
-}
 {% endif %}

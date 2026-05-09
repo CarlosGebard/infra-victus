@@ -12,3 +12,14 @@ services:
     volumes:
       - ../../.tmp/core/seaweedfs/data:/data
       - ../../configs/seaweedfs/s3.json.example:/run/secrets/seaweed-s3.json:ro
+
+  etcd:
+    volumes:
+      - ../../.tmp/core/etcd/data:/etcd-data
+
+  coredns:
+    ports:
+      - "${COREDNS_BIND_IP:-127.0.0.1}:${COREDNS_DNS_PORT:-1053}:53/tcp"
+      - "${COREDNS_BIND_IP:-127.0.0.1}:${COREDNS_DNS_PORT:-1053}:53/udp"
+    volumes:
+      - ../../configs/coredns/Corefile:/etc/coredns/Corefile:ro

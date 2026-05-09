@@ -36,6 +36,44 @@ services:
     networks:
       - core_backend
 
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.21
+    container_name: etcd
+    restart: unless-stopped
+    command:
+      - /usr/local/bin/etcd
+      - --name=core-etcd
+      - --data-dir=/etcd-data
+      - --listen-client-urls=http://0.0.0.0:2379
+      - --advertise-client-urls=http://etcd:2379
+      - --listen-peer-urls=http://0.0.0.0:2380
+      - --initial-advertise-peer-urls=http://etcd:2380
+      - --initial-cluster=core-etcd=http://etcd:2380
+      - --initial-cluster-state=new
+    healthcheck:
+      test: ["CMD", "etcdctl", "--endpoints=http://127.0.0.1:2379", "endpoint", "health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+    networks:
+      - core_backend
+
+  coredns:
+    image: coredns/coredns:1.14.2
+    container_name: coredns
+    restart: unless-stopped
+    environment:
+      DNS_TARGET_IP: ${TAILSCALE_IPV4:-127.0.0.1}
+    depends_on:
+      etcd:
+        condition: service_healthy
+    command:
+      - -conf
+      - /etc/coredns/Corefile
+    networks:
+      - core_backend
+
 networks:
   edge:
     driver: bridge
