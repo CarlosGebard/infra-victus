@@ -27,11 +27,15 @@ validate_stack() {
 	local stack="$1"
 	local stack_dir="$ROOT_DIR/compose/projects/$stack"
 	local env_file="$stack_dir/.env"
+	local env_example="$ROOT_DIR/compose/env/${stack}.env.example"
 	local compose_base="$stack_dir/compose.yml"
 	local compose_overlay="$stack_dir/compose.dev.yml"
 
 	log "Validating stack: $stack"
 
+	if [[ ! -f "$env_file" ]]; then
+		env_file="$env_example"
+	fi
 	require_file "$env_file"
 	require_file "$compose_base"
 	require_file "$compose_overlay"
@@ -102,6 +106,7 @@ validate_required_dirs() {
 	)
 
 	for dir in "${dirs[@]}"; do
+		mkdir -p "$dir"
 		require_dir "$dir"
 	done
 }
