@@ -182,14 +182,27 @@
         | flatten
       }}
 
+- name: Sync core private DNS runtime env before Compose deploy
+  ansible.builtin.command:
+    cmd: "{{ deploy_stack.project_dir }}/scripts/sync-core-dns.sh"
+  environment:
+    CORE_ENV_FILE: "{{ deploy_stack.env_path }}"
+    CORE_COMPOSE_OVERLAY: "{{ deploy_stack.project_dir }}/compose.prod.yml"
+  register: deploy_core_dns_presync
+  changed_when: "'Updated runtime env file:' in deploy_core_dns_presync.stdout"
+
 - name: Validate rendered core Compose configuration
   ansible.builtin.command:
     cmd: docker compose --env-file {{ deploy_stack.env_path }} {{ deploy_core_compose_args }} config
+  environment:
+    COMPOSE_PROGRESS: plain
   changed_when: false
 
 - name: Deploy the core stack
   ansible.builtin.command:
     cmd: docker compose --env-file {{ deploy_stack.env_path }} {{ deploy_core_compose_args }} up -d
+  environment:
+    COMPOSE_PROGRESS: plain
   register: deploy_core_up
   changed_when: >-
     'Started' in deploy_core_up.stdout or
@@ -241,6 +254,8 @@
 - name: Redeploy the core stack with TLS enabled
   ansible.builtin.command:
     cmd: docker compose --env-file {{ deploy_stack.env_path }} {{ deploy_core_compose_args }} up -d
+  environment:
+    COMPOSE_PROGRESS: plain
   register: deploy_core_tls_up
   changed_when: >-
     'Started' in deploy_core_tls_up.stdout or
@@ -305,6 +320,8 @@
       docker compose --env-file {{ deploy_stack.env_path }}
       {{ deploy_core_compose_args }}
       up -d --force-recreate {{ deploy_core_recreate_services | join(' ') }}
+  environment:
+    COMPOSE_PROGRESS: plain
   when: deploy_core_recreate_services | length > 0
   register: deploy_core_force_recreate
   changed_when: >-
@@ -318,6 +335,8 @@
       docker compose --env-file {{ deploy_stack.env_path }}
       {{ deploy_core_compose_args }}
       restart {{ deploy_core_restart_services | join(' ') }}
+  environment:
+    COMPOSE_PROGRESS: plain
   when: deploy_core_restart_services | length > 0
   register: deploy_core_restart
   changed_when: deploy_core_restart_services | length > 0

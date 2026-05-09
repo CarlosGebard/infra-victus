@@ -43,6 +43,7 @@ write_managed_env_block() {
     BEGIN { skip=0 }
     /^# BEGIN managed: core-private-dns$/ { skip=1; next }
     /^# END managed: core-private-dns$/ { skip=0; next }
+    $1 ~ /^(TAILSCALE_INTERFACE|TAILSCALE_IPV4|DNS_ZONE|ETCD_PREFIX|DNS_TTL|COREDNS_BIND_IP|COREDNS_DNS_PORT|NGINX_BIND_IP|NGINX_HTTP_PORT|S3_DOMAIN)=/ { next }
     skip == 0 { print }
   ' "$ENV_FILE" > "$tmp_file"
 

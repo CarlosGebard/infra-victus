@@ -16,16 +16,6 @@ on:
       - "compose/**"
       - "ops/**"
       - "tests/ansible/**"
-  push:
-    branches:
-      - main
-    paths:
-      - ".github/workflows/**"
-      - "ansible/**"
-      - "compose/**"
-      - "ops/**"
-      - "tests/ansible/**"
-
 concurrency:
   group: production-validate-infra
   cancel-in-progress: false

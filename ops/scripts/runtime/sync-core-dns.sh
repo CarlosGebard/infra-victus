@@ -31,8 +31,6 @@ else
 fi
 
 COREDNS_DNS_PORT="${COREDNS_DNS_PORT:-$DEFAULT_COREDNS_DNS_PORT}"
-NGINX_BIND_IP="${NGINX_BIND_IP:-}"
-NGINX_HTTP_PORT="${NGINX_HTTP_PORT:-}"
 
 log() { echo "[INFO] $*"; }
 err() {
@@ -53,6 +51,19 @@ ensure_file() {
 
   mkdir -p "$(dirname "$path")"
   touch "$path"
+}
+
+env_value() {
+  local key="$1"
+  local value
+
+  value="$(awk -F= -v key="$key" '
+    /^# BEGIN managed: core-private-dns$/ { skip=1; next }
+    /^# END managed: core-private-dns$/ { skip=0; next }
+    skip == 0 && $1 == key { value = substr($0, length(key) + 2) }
+    END { print value }
+  ' "$ENV_FILE" 2>/dev/null || true)"
+  printf '%s' "$value"
 }
 
 json_escape() {
@@ -121,6 +132,7 @@ write_managed_env_block() {
     BEGIN { skip=0 }
     /^# BEGIN managed: core-private-dns$/ { skip=1; next }
     /^# END managed: core-private-dns$/ { skip=0; next }
+    $1 ~ /^(TAILSCALE_INTERFACE|TAILSCALE_IPV4|DNS_ZONE|ETCD_PREFIX|DNS_TTL|COREDNS_BIND_IP|COREDNS_DNS_PORT|S3_DOMAIN)=/ { next }
     skip == 0 { print }
   ' "$target" > "$tmp_file"
 
@@ -135,6 +147,8 @@ COREDNS_BIND_IP=$TAILSCALE_IP
 COREDNS_DNS_PORT=$COREDNS_DNS_PORT
 NGINX_BIND_IP=${NGINX_BIND_IP:-$TAILSCALE_IP}
 NGINX_HTTP_PORT=${NGINX_HTTP_PORT:-8080}
+NGINX_HTTPS_BIND_IP=${NGINX_HTTPS_BIND_IP:-0.0.0.0}
+NGINX_HTTPS_PORT=${NGINX_HTTPS_PORT:-443}
 S3_DOMAIN=$S3_DOMAIN
 # END managed: core-private-dns
 EOF
@@ -148,6 +162,11 @@ require_cmd ip
 require_file "$COMPOSE_BASE"
 require_file "$COMPOSE_OVERLAY"
 ensure_file "$ENV_FILE"
+
+NGINX_BIND_IP="${NGINX_BIND_IP:-$(env_value NGINX_BIND_IP)}"
+NGINX_HTTP_PORT="${NGINX_HTTP_PORT:-$(env_value NGINX_HTTP_PORT)}"
+NGINX_HTTPS_BIND_IP="${NGINX_HTTPS_BIND_IP:-$(env_value NGINX_HTTPS_BIND_IP)}"
+NGINX_HTTPS_PORT="${NGINX_HTTPS_PORT:-$(env_value NGINX_HTTPS_PORT)}"
 
 TAILSCALE_IP="${TAILSCALE_IPV4:-}"
 if [[ -z "$TAILSCALE_IP" ]]; then
