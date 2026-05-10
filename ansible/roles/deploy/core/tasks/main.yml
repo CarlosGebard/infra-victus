@@ -363,5 +363,10 @@
       --contract /buckets.json
       --seaweed-s3-config /seaweed-s3.json
       --endpoint http://seaweedfs:8333
+      --wait-timeout 120
+      --wait-interval 3
   register: deploy_core_s3_buckets
+  retries: 3
+  delay: 10
+  until: deploy_core_s3_buckets.rc == 0
   changed_when: "'[CREATE]' in deploy_core_s3_buckets.stdout"

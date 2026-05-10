@@ -6,6 +6,7 @@ import hmac
 import json
 import os
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -111,6 +112,25 @@ def request_ok(method, endpoint, access_key, secret_key, region, bucket, key=Non
         raise
 
 
+def endpoint_ready(endpoint, access_key, secret_key, region):
+    try:
+        result = request_ok("HEAD", endpoint, access_key, secret_key, region, "__victus_probe__")
+        return result is True or isinstance(result, urllib.error.HTTPError)
+    except urllib.error.URLError:
+        return False
+
+
+def wait_for_endpoint(endpoint, access_key, secret_key, region, timeout, interval):
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if endpoint_ready(endpoint, access_key, secret_key, region):
+            print("[OK] endpoint ready")
+            return
+        print(f"[WAIT] endpoint not ready, retrying in {interval}s")
+        time.sleep(interval)
+    raise SystemExit(f"S3 endpoint not ready after {timeout}s: {endpoint}")
+
+
 def ensure_bucket(endpoint, access_key, secret_key, region, bucket):
     head = request_ok("HEAD", endpoint, access_key, secret_key, region, bucket)
     if head is True:
@@ -178,6 +198,18 @@ def main():
     )
     parser.add_argument("--endpoint", default=os.environ.get("S3_ENDPOINT", "http://seaweedfs:8333"))
     parser.add_argument("--region", default=os.environ.get("AWS_REGION", "us-east-1"))
+    parser.add_argument(
+        "--wait-timeout",
+        type=int,
+        default=int(os.environ.get("S3_WAIT_TIMEOUT", "120")),
+        help="Seconds to wait for the SeaweedFS S3 endpoint before applying the contract.",
+    )
+    parser.add_argument(
+        "--wait-interval",
+        type=int,
+        default=int(os.environ.get("S3_WAIT_INTERVAL", "3")),
+        help="Seconds between S3 readiness probes.",
+    )
     args = parser.parse_args()
 
     contract = load_json(args.contract)
@@ -186,6 +218,14 @@ def main():
 
     print(f"[INFO] endpoint: {args.endpoint}")
     print(f"[INFO] contract: {args.contract}")
+    wait_for_endpoint(
+        args.endpoint,
+        access_key,
+        secret_key,
+        args.region,
+        args.wait_timeout,
+        args.wait_interval,
+    )
 
     for bucket in contract["buckets"]:
         name = bucket["name"]
