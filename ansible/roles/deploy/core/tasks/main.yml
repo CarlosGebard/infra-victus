@@ -1,17 +1,14 @@
 ---
 - name: Derive core domain variables
   ansible.builtin.set_fact:
-    core_base_domain: "{{ lookup('ansible.builtin.env', 'BASE_DOMAIN') | default('', true) }}"
+    core_base_domain: "{{ networking.base_domain }}"
     core_certbot_email: >-
       {{
-        lookup('ansible.builtin.env', 'CERTBOT_EMAIL')
-        | default(host.admin_user ~ '@' ~ (lookup('ansible.builtin.env', 'BASE_DOMAIN') | default('', true)), true)
+        networking.tls.certbot_email
+        | default(host.admin_user ~ '@' ~ networking.base_domain, true)
       }}
-    core_public_domains:
-      - "seaweed.{{ lookup('ansible.builtin.env', 'BASE_DOMAIN') | default('', true) }}"
-      - "filer.{{ lookup('ansible.builtin.env', 'BASE_DOMAIN') | default('', true) }}"
-      - "s3.{{ lookup('ansible.builtin.env', 'BASE_DOMAIN') | default('', true) }}"
-    core_cert_name: "core-edge-{{ (lookup('ansible.builtin.env', 'BASE_DOMAIN') | default('', true)) | replace('.', '-') }}"
+    core_vhosts: "{{ networking.vhosts | default([]) }}"
+    core_cert_name: "{{ networking.tls.cert_name | default('core-edge-' ~ (networking.base_domain | replace('.', '-')), true) }}"
     deploy_core_compose_args: >-
       {{
         '-f ' ~ (deploy_stack.compose_cli_files | join(' -f '))
@@ -21,7 +18,23 @@
   ansible.builtin.assert:
     that:
       - core_base_domain | length > 0
-    fail_msg: "BASE_DOMAIN environment variable is required for core deploy."
+      - core_vhosts | length > 0
+    fail_msg: "Core deploy requires networking.base_domain and at least one networking.vhosts entry."
+
+- name: Derive core TLS certificate domains
+  ansible.builtin.set_fact:
+    core_cert_domains: >-
+      {{
+        core_vhosts
+        | selectattr('https.enabled', 'defined')
+        | selectattr('https.enabled')
+        | map(attribute='domains')
+        | list
+        | flatten
+        | reject('match', '^\\*\\.')
+        | unique
+        | list
+      }}
 
 - name: Install certbot packages for core TLS
   ansible.builtin.apt:
@@ -107,9 +120,7 @@
     group: root
     mode: "0644"
   vars:
-    seaweed_domain: "{{ core_public_domains[0] }}"
-    filer_domain: "{{ core_public_domains[1] }}"
-    s3_domain: "{{ core_public_domains[2] }}"
+    core_vhosts: "{{ core_vhosts }}"
     core_cert_name: "{{ core_cert_name }}"
     core_tls_enabled: "{{ core_tls_cert.stat.exists }}"
   register: deploy_core_nginx_template_pre_tls
@@ -217,8 +228,9 @@
       --cert-name {{ core_cert_name }}
       {% if core_tls_cert.stat.exists %}--expand{% else %}--duplicate{% endif %}
       --webroot -w {{ deploy_stack.project_dir }}/nginx/acme
-      {% for domain in core_public_domains %}-d {{ domain }} {% endfor %}
+      {% for domain in core_cert_domains %}-d {{ domain }} {% endfor %}
       --keep-until-expiring
+  when: core_cert_domains | length > 0
   register: core_certbot_result
   changed_when: >-
     'Successfully received certificate' in core_certbot_result.stdout or
@@ -228,6 +240,7 @@
 - name: Re-check core TLS certificate
   ansible.builtin.stat:
     path: "/etc/letsencrypt/live/{{ core_cert_name }}/fullchain.pem"
+  when: core_cert_domains | length > 0
   register: core_tls_cert_after
 
 - name: Ensure core TLS certificate exists
@@ -235,6 +248,7 @@
     that:
       - core_tls_cert_after.stat.exists
     fail_msg: "Core TLS certificate was not created by certbot."
+  when: core_cert_domains | length > 0
 
 - name: Render core nginx routing with TLS enabled
   ansible.builtin.template:
@@ -244,12 +258,11 @@
     group: root
     mode: "0644"
   vars:
-    seaweed_domain: "{{ core_public_domains[0] }}"
-    filer_domain: "{{ core_public_domains[1] }}"
-    s3_domain: "{{ core_public_domains[2] }}"
+    core_vhosts: "{{ core_vhosts }}"
     core_cert_name: "{{ core_cert_name }}"
-    core_tls_enabled: true
+    core_tls_enabled: "{{ core_cert_domains | length > 0 }}"
   register: deploy_core_nginx_template_tls
+  when: core_cert_domains | length > 0
 
 - name: Redeploy the core stack with TLS enabled
   ansible.builtin.command:
@@ -257,6 +270,7 @@
   environment:
     COMPOSE_PROGRESS: plain
   register: deploy_core_tls_up
+  when: core_cert_domains | length > 0
   changed_when: >-
     'Started' in deploy_core_tls_up.stdout or
     'Recreated' in deploy_core_tls_up.stdout or

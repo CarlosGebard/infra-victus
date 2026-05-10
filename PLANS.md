@@ -12,6 +12,30 @@ Dejar `infra-victus` operable sin CouchDB, con DNS privado `victus.io` respaldad
 
 ## Important Remaining Work
 
+### 0. Declarative NGINX Vhosts
+Goal:
+- Convertir routing NGINX de `core` a modelo declarativo por vhost/endpoint.
+- Separar HTTP privado sobre Tailscale de HTTPS/certbot.
+- Evitar redirects accidentales por existencia de certificados.
+
+Current:
+- `networking.vhosts` declara domains, upstream, access policy, preserve_host, HTTP redirect y HTTPS.
+- `deploy.yml` queda para mecánica de despliegue; `networking.yml` queda para contrato de red.
+- `s3.victus.io` y `*.s3.victus.io` quedan HTTP privado sin redirect.
+- Certbot solo considera vhosts con `https.enabled: true`.
+
+Validation:
+- `bash tests/ansible/deploy-syntax-check.sh`
+- `make compose-validate`
+- En VPS tras deploy:
+  - `curl -v http://s3.victus.io/`
+  - `curl -v http://victus-rag.s3.victus.io/`
+  - `aws --endpoint-url http://s3.victus.io s3api list-buckets`
+
+Risk:
+- TLS privado/wildcard requiere Fase 2 con DNS-01.
+- Local actual no tiene `ansible-playbook`; syntax-check debe correr en CI o ambiente con Ansible.
+
 ### 1. Finish S3 Virtual-Host Routing
 Goal:
 - Que `s3.victus.io` y `<bucket>.s3.victus.io` lleguen a SeaweedFS S3 con `Host` preservado.

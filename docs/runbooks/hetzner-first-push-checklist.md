@@ -33,8 +33,6 @@ Revisar también variables de GitHub Actions `production`:
 - `INFISICAL_PROJECT_SLUG`
 - `INFISICAL_ENV_SLUG`
 - `INFISICAL_SECRET_PATH`
-- `BASE_DOMAIN`
-- `CERTBOT_EMAIL` opcional
 - `CORE_RUNTIME_ENV` opcional y sin secretos
 
 Si Infisical ahora entrega otros nombres, los workflows van a fallar.

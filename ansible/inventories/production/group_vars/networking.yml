@@ -1,0 +1,54 @@
+networking:
+  base_domain: victus.io
+
+  private_dns:
+    zone: victus.io
+    provider: coredns
+    tailscale_interface: tailscale0
+
+  tls:
+    provider: letsencrypt
+    challenge: http-01
+    certbot_email: "carlos@victus.io"
+    cert_name: core-edge-victus-io
+
+  vhosts:
+    - name: seaweed-master
+      domains:
+        - seaweed.victus.io
+      upstream: seaweedfs:9333
+      exposure: private
+      access_policy: private
+      preserve_host: false
+      http:
+        enabled: true
+        redirect_to_https: false
+      https:
+        enabled: false
+
+    - name: seaweed-filer
+      domains:
+        - filer.victus.io
+      upstream: seaweedfs:8888
+      exposure: private
+      access_policy: private
+      preserve_host: false
+      http:
+        enabled: true
+        redirect_to_https: false
+      https:
+        enabled: false
+
+    - name: seaweed-s3
+      domains:
+        - s3.victus.io
+        - "*.s3.victus.io"
+      upstream: seaweedfs:8333
+      exposure: private
+      access_policy: private
+      preserve_host: true
+      http:
+        enabled: true
+        redirect_to_https: false
+      https:
+        enabled: false

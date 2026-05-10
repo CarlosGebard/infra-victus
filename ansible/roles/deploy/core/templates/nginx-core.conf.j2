@@ -53,9 +53,11 @@ server {
   }
 }
 
+{% for vhost in core_vhosts %}
+{% if vhost.http.enabled | default(true) %}
 server {
   listen 80;
-  server_name {{ seaweed_domain }};
+  server_name {{ vhost.domains | join(' ') }};
 
   resolver 127.0.0.11 valid=10s ipv6=off;
   resolver_timeout 5s;
@@ -65,79 +67,32 @@ server {
     try_files $uri =404;
   }
 
-{% if core_tls_enabled | bool %}
   location / {
+{% if vhost.access_policy | default('private') == 'private' %}
     include /etc/nginx/snippets/private-access.conf;
-    return 301 https://$host$request_uri;
-  }
-{% else %}
-  location / {
-    include /etc/nginx/snippets/private-access.conf;
-    set $upstream seaweedfs:9333;
-    proxy_pass http://$upstream;
-  }
 {% endif %}
-}
-
-server {
-  listen 80;
-  server_name {{ filer_domain }};
-
-  resolver 127.0.0.11 valid=10s ipv6=off;
-  resolver_timeout 5s;
-
-  location ^~ /.well-known/acme-challenge/ {
-    root /var/www/certbot;
-    try_files $uri =404;
-  }
-
-{% if core_tls_enabled | bool %}
-  location / {
-    include /etc/nginx/snippets/private-access.conf;
+{% if vhost.http.redirect_to_https | default(false) %}
     return 301 https://$host$request_uri;
-  }
 {% else %}
-  location / {
-    include /etc/nginx/snippets/private-access.conf;
-    set $upstream seaweedfs:8888;
-    proxy_pass http://$upstream;
-  }
-{% endif %}
-}
-
-server {
-  listen 80;
-  server_name s3.victus.io *.s3.victus.io {{ s3_domain }};
-
-  resolver 127.0.0.11 valid=10s ipv6=off;
-  resolver_timeout 5s;
-
-  location ^~ /.well-known/acme-challenge/ {
-    root /var/www/certbot;
-    try_files $uri =404;
-  }
-
-{% if core_tls_enabled | bool %}
-  location / {
-    include /etc/nginx/snippets/private-access.conf;
-    return 301 https://$host$request_uri;
-  }
-{% else %}
-  location / {
-    include /etc/nginx/snippets/private-access.conf;
+{% if vhost.preserve_host | default(false) %}
     proxy_set_header Host $http_host;
     proxy_set_header X-Forwarded-Host $http_host;
-    proxy_set_header X-Forwarded-Proto $scheme;
-    set $upstream seaweedfs:8333;
-    proxy_pass http://$upstream;
-  }
 {% endif %}
+    proxy_set_header X-Forwarded-Proto $scheme;
+    set $upstream {{ vhost.upstream }};
+    proxy_pass http://$upstream;
+{% endif %}
+  }
 }
 
+{% endif %}
+{% endfor %}
 {% if core_tls_enabled | bool %}
+{% for vhost in core_vhosts %}
+{% if vhost.https.enabled | default(false) %}
 server {
   listen 443 ssl;
-  server_name {{ seaweed_domain }};
+  server_name {{ vhost.domains | join(' ') }};
 
   resolver 127.0.0.11 valid=10s ipv6=off;
   resolver_timeout 5s;
@@ -150,55 +105,19 @@ server {
   ssl_prefer_server_ciphers off;
 
   location / {
+{% if vhost.access_policy | default('private') == 'private' %}
     include /etc/nginx/snippets/private-access.conf;
-    set $upstream seaweedfs:9333;
-    proxy_pass http://$upstream;
-  }
-}
-
-server {
-  listen 443 ssl;
-  server_name {{ filer_domain }};
-
-  resolver 127.0.0.11 valid=10s ipv6=off;
-  resolver_timeout 5s;
-
-  ssl_certificate /etc/letsencrypt/live/{{ core_cert_name }}/fullchain.pem;
-  ssl_certificate_key /etc/letsencrypt/live/{{ core_cert_name }}/privkey.pem;
-  ssl_session_cache shared:SSL:10m;
-  ssl_session_timeout 10m;
-  ssl_protocols TLSv1.2 TLSv1.3;
-  ssl_prefer_server_ciphers off;
-
-  location / {
-    include /etc/nginx/snippets/private-access.conf;
-    set $upstream seaweedfs:8888;
-    proxy_pass http://$upstream;
-  }
-}
-
-server {
-  listen 443 ssl;
-  server_name s3.victus.io *.s3.victus.io {{ s3_domain }};
-
-  resolver 127.0.0.11 valid=10s ipv6=off;
-  resolver_timeout 5s;
-
-  ssl_certificate /etc/letsencrypt/live/{{ core_cert_name }}/fullchain.pem;
-  ssl_certificate_key /etc/letsencrypt/live/{{ core_cert_name }}/privkey.pem;
-  ssl_session_cache shared:SSL:10m;
-  ssl_session_timeout 10m;
-  ssl_protocols TLSv1.2 TLSv1.3;
-  ssl_prefer_server_ciphers off;
-
-  location / {
-    include /etc/nginx/snippets/private-access.conf;
+{% endif %}
+{% if vhost.preserve_host | default(false) %}
     proxy_set_header Host $http_host;
     proxy_set_header X-Forwarded-Host $http_host;
+{% endif %}
     proxy_set_header X-Forwarded-Proto $scheme;
-    set $upstream seaweedfs:8333;
+    set $upstream {{ vhost.upstream }};
     proxy_pass http://$upstream;
   }
 }
 
+{% endif %}
+{% endfor %}
 {% endif %}

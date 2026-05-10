@@ -306,8 +306,6 @@ jobs:
 
       - name: Materialize core runtime env
         env:
-          BASE_DOMAIN: ${{ vars.BASE_DOMAIN }}
-          CERTBOT_EMAIL: ${{ vars.CERTBOT_EMAIL }}
           CORE_RUNTIME_ENV: ${{ vars.CORE_RUNTIME_ENV }}
           SEAWEED_S3_ACCESS_KEY: ${{ env.SEAWEED_S3_ACCESS_KEY }}
           SEAWEED_S3_SECRET_KEY: ${{ env.SEAWEED_S3_SECRET_KEY }}
@@ -390,8 +388,6 @@ jobs:
       - name: Deploy core
         env:
           ANSIBLE_HOST_KEY_CHECKING: "true"
-          BASE_DOMAIN: ${{ vars.BASE_DOMAIN }}
-          CERTBOT_EMAIL: ${{ vars.CERTBOT_EMAIL }}
           CORE_RUNTIME_ENV_SOURCE_FILE: /tmp/core-runtime.env
           CORE_RUNTIME_SEAWEED_S3_SOURCE_FILE: /tmp/seaweed-s3.json
         run: |

@@ -71,10 +71,11 @@ No se requiere `PROD_SSH_USER` para flujo actual.
 
 ## Variables esperadas en GitHub `production`
 
-- `BASE_DOMAIN`
-- opcional: `CERTBOT_EMAIL`
+`core` no toma dominios desde GitHub Variables. Dominios, vhosts y política HTTP/HTTPS viven en:
 
-Si `CERTBOT_EMAIL` no existe, deploy usa fallback `{{ host.admin_user }}@{{ BASE_DOMAIN }}`.
+```text
+ansible/inventories/production/group_vars/networking.yml
+```
 
 Por stack:
 
@@ -166,7 +167,16 @@ Nota:
 
 `deploy-all.yml` quedó como pipeline CD principal. En `push` a `main` corre automáticamente solo cuando cambian archivos de infraestructura. Si environment `production` exige aprobación manual en GitHub, workflow quedará pausado ahí hasta aprobar.
 
-Primer deploy TLS para `seaweed.{{ BASE_DOMAIN }}` requiere reachability pública en `80/tcp` y `443/tcp`. `core` sube primero con HTTP + challenge webroot, `certbot` emite cert, luego mismo deploy reprocesa nginx con TLS activo.
+NGINX `core` se renderiza desde `networking.vhosts`.
+
+Fase actual:
+
+- endpoints `victus.io` son privados sobre Tailscale
+- S3 usa HTTP en `s3.victus.io` y `*.s3.victus.io`
+- no hay redirect HTTP -> HTTPS para S3
+- vhosts con `https.enabled: false` no entran a certbot
+
+TLS privado/wildcard queda diferido hasta DNS-01.
 
 ## DNS privado `victus.io`
 
