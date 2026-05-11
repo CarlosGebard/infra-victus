@@ -1,4 +1,4 @@
-# Infra Victus
+# Victus Infra
 
 Reproducible infrastructure for the Victus VPS and private RAG data platform.
 
