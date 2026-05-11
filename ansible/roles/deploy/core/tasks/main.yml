@@ -26,6 +26,7 @@
     core_cert_domains: >-
       {{
         core_vhosts
+        | selectattr('exposure', 'equalto', 'public')
         | selectattr('https.enabled', 'defined')
         | selectattr('https.enabled')
         | map(attribute='domains')
@@ -112,10 +113,28 @@
   loop: "{{ deploy_stack.compose_files }}"
   register: deploy_core_compose_copy
 
-- name: Render core nginx routing
+- name: Remove legacy single nginx container
+  ansible.builtin.command:
+    cmd: docker rm -f nginx
+  register: deploy_core_remove_legacy_nginx
+  changed_when: deploy_core_remove_legacy_nginx.rc == 0
+  failed_when: false
+
+- name: Render private core nginx routing
   ansible.builtin.template:
-    src: nginx-core.conf.j2
-    dest: "{{ deploy_stack.project_dir }}/nginx/conf.d/core.conf"
+    src: nginx-private.conf.j2
+    dest: "{{ deploy_stack.project_dir }}/nginx/private/conf.d/core.conf"
+    owner: root
+    group: root
+    mode: "0644"
+  vars:
+    core_vhosts: "{{ core_vhosts }}"
+  register: deploy_core_nginx_private_template
+
+- name: Render public core nginx routing
+  ansible.builtin.template:
+    src: nginx-public.conf.j2
+    dest: "{{ deploy_stack.project_dir }}/nginx/public/conf.d/core.conf"
     owner: root
     group: root
     mode: "0644"
@@ -123,7 +142,7 @@
     core_vhosts: "{{ core_vhosts }}"
     core_cert_name: "{{ core_cert_name }}"
     core_tls_enabled: "{{ core_tls_cert.stat.exists }}"
-  register: deploy_core_nginx_template_pre_tls
+  register: deploy_core_nginx_public_template_pre_tls
 
 - name: Link active environment file into the core stack directory
   ansible.builtin.file:
@@ -250,10 +269,10 @@
     fail_msg: "Core TLS certificate was not created by certbot."
   when: core_cert_domains | length > 0
 
-- name: Render core nginx routing with TLS enabled
+- name: Render public core nginx routing with TLS enabled
   ansible.builtin.template:
-    src: nginx-core.conf.j2
-    dest: "{{ deploy_stack.project_dir }}/nginx/conf.d/core.conf"
+    src: nginx-public.conf.j2
+    dest: "{{ deploy_stack.project_dir }}/nginx/public/conf.d/core.conf"
     owner: root
     group: root
     mode: "0644"
@@ -261,7 +280,7 @@
     core_vhosts: "{{ core_vhosts }}"
     core_cert_name: "{{ core_cert_name }}"
     core_tls_enabled: "{{ core_cert_domains | length > 0 }}"
-  register: deploy_core_nginx_template_tls
+  register: deploy_core_nginx_public_template_tls
   when: core_cert_domains | length > 0
 
 - name: Redeploy the core stack with TLS enabled
@@ -321,8 +340,14 @@
             | flatten
           )
           + (
-            ['nginx']
-            if deploy_core_nginx_template_pre_tls.changed or deploy_core_nginx_template_tls.changed
+            ['nginx-private']
+            if deploy_core_nginx_private_template.changed
+            else []
+          )
+          + (
+            ['nginx-public']
+            if deploy_core_nginx_public_template_pre_tls.changed or
+              (deploy_core_nginx_public_template_tls is defined and deploy_core_nginx_public_template_tls.changed)
             else []
           )
         ) | unique | difference(deploy_core_recreate_services | default([]))

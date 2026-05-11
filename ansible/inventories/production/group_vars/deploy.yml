@@ -15,12 +15,14 @@ deploy:
       - "{{ srv_apps_root }}/core/compose.prod.yml"
     env_path: "{{ srv_secrets_root }}/runtime/core.env"
     compose_services:
-      - nginx
+      - nginx-private
+      - nginx-public
       - seaweedfs
       - etcd
       - coredns
     directories:
-      - { path: "{{ srv_apps_root }}/core/nginx/conf.d", mode: "0755" }
+      - { path: "{{ srv_apps_root }}/core/nginx/private/conf.d", mode: "0755" }
+      - { path: "{{ srv_apps_root }}/core/nginx/public/conf.d", mode: "0755" }
       - { path: "{{ srv_apps_root }}/core/nginx/snippets", mode: "0755" }
       - { path: "{{ srv_apps_root }}/core/nginx/acme", mode: "0755" }
       - { path: "{{ srv_apps_root }}/core/coredns", mode: "0755" }
@@ -32,7 +34,7 @@ deploy:
         dest: "{{ srv_secrets_root }}/runtime/core.env"
         mode: "0600"
         recreate_services:
-          - nginx
+          - nginx-private
           - seaweedfs
           - coredns
       - source_file: "{{ lookup('ansible.builtin.env', 'CORE_RUNTIME_SEAWEED_S3_SOURCE_FILE') | default('', true) }}"
@@ -47,11 +49,12 @@ deploy:
       - src: "{{ playbook_dir }}/../../compose/configs/nginx/nginx.conf"
         dest: "{{ srv_apps_root }}/core/nginx/nginx.conf"
         restart_services:
-          - nginx
+          - nginx-private
+          - nginx-public
       - src: "{{ playbook_dir }}/../../compose/configs/nginx/snippets/private-access.conf"
         dest: "{{ srv_apps_root }}/core/nginx/snippets/private-access.conf"
         restart_services:
-          - nginx
+          - nginx-private
       - src: "{{ playbook_dir }}/../../compose/configs/coredns/Corefile"
         dest: "{{ srv_apps_root }}/core/coredns/Corefile"
         restart_services:

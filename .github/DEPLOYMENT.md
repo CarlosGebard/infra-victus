@@ -33,7 +33,6 @@ Use **`deploy-all.yml`** workflow:
    - Click "Run workflow"
    - Inputs:
      - `git_ref`: branch/tag to deploy (default: main)
-     - `auto_rollback`: currently informational; manual rollback required
 
 3. **Execution Flow**
    ```
@@ -58,8 +57,7 @@ git pull origin main
 
 # 2. Trigger via CLI
 gh workflow run deploy-all.yml \
-  -f git_ref=main \
-  -f auto_rollback=true
+  -f git_ref=main
 
 # 3. Monitor
 gh run list --workflow=deploy-all.yml
@@ -96,7 +94,8 @@ All secrets fetched via Infisical + OIDC at runtime. None stored in GitHub.
 
 Workflows automatically verify expected services running:
 
-- nginx ✓
+- nginx-private ✓
+- nginx-public ✓
 - seaweedfs ✓
 - loki ✓
 - prometheus ✓
@@ -110,13 +109,6 @@ ssh carlos@<PROD_HOST> "docker ps --all"
 Expected output: project containers with status `running`
 
 ## Rollback
-
-### Automatic Rollback (if implemented)
-
-Currently, `deploy-all.yml` supports `auto_rollback` input but requires manual implementation via:
-- Ansible handlers
-- Docker volume snapshots
-- Or manual recovery procedure
 
 ### Manual Rollback
 

@@ -1,12 +1,19 @@
 services:
-  nginx:
+  nginx-private:
     ports:
       - "${NGINX_BIND_IP:-127.0.0.1}:${NGINX_HTTP_PORT:-8080}:80"
     volumes:
       - ../../configs/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ../../configs/nginx/conf.d:/etc/nginx/conf.d:ro
       - ../../configs/nginx/snippets:/etc/nginx/snippets:ro
-      - ../../.tmp/core/nginx/logs:/var/log/nginx
+      - ../../.tmp/core/nginx-private/logs:/var/log/nginx
+
+  nginx-public:
+    volumes:
+      - ../../configs/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ../../configs/nginx/public/conf.d:/etc/nginx/conf.d:ro
+      - ../../configs/nginx/snippets:/etc/nginx/snippets:ro
+      - ../../.tmp/core/nginx-public/logs:/var/log/nginx
 
   seaweedfs:
     volumes:

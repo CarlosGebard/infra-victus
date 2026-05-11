@@ -48,21 +48,30 @@ validate_stack() {
 
 validate_nginx() {
 	local nginx_conf="$ROOT_DIR/compose/configs/nginx/nginx.conf"
-	local nginx_conf_dir="$ROOT_DIR/compose/configs/nginx/conf.d"
+	local nginx_private_conf_dir="$ROOT_DIR/compose/configs/nginx/conf.d"
+	local nginx_public_conf_dir="$ROOT_DIR/compose/configs/nginx/public/conf.d"
 	local nginx_snippets_dir="$ROOT_DIR/compose/configs/nginx/snippets"
 
 	require_file "$nginx_conf"
-	require_dir "$nginx_conf_dir"
+	require_dir "$nginx_private_conf_dir"
+	require_dir "$nginx_public_conf_dir"
 	require_dir "$nginx_snippets_dir"
 
-	log "Validating nginx config"
+	log "Validating private nginx config"
 	docker run --rm \
 		--add-host seaweedfs:127.0.0.1 \
 		--add-host grafana:127.0.0.1 \
 		--add-host prometheus:127.0.0.1 \
 		--add-host loki:127.0.0.1 \
 		-v "$nginx_conf:/etc/nginx/nginx.conf:ro" \
-		-v "$nginx_conf_dir:/etc/nginx/conf.d:ro" \
+		-v "$nginx_private_conf_dir:/etc/nginx/conf.d:ro" \
+		-v "$nginx_snippets_dir:/etc/nginx/snippets:ro" \
+		nginx:1.28.3-alpine nginx -t
+
+	log "Validating public nginx config"
+	docker run --rm \
+		-v "$nginx_conf:/etc/nginx/nginx.conf:ro" \
+		-v "$nginx_public_conf_dir:/etc/nginx/conf.d:ro" \
 		-v "$nginx_snippets_dir:/etc/nginx/snippets:ro" \
 		nginx:1.28.3-alpine nginx -t
 }
@@ -97,7 +106,8 @@ validate_seaweed_s3_config() {
 
 validate_required_dirs() {
 	local dirs=(
-		"$ROOT_DIR/compose/.tmp/core/nginx/logs"
+		"$ROOT_DIR/compose/.tmp/core/nginx-private/logs"
+		"$ROOT_DIR/compose/.tmp/core/nginx-public/logs"
 		"$ROOT_DIR/compose/.tmp/core/seaweedfs/data"
 		"$ROOT_DIR/compose/.tmp/core/etcd/data"
 		"$ROOT_DIR/compose/.tmp/observability/grafana"

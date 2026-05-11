@@ -9,7 +9,7 @@ Workflows manage infrastructure deployment via GitHub Actions + Infisical OIDC.
 | Workflow | Purpose | Trigger | Frequency |
 |----------|---------|---------|-----------|
 | **`deploy-all.yml`** | **Deploy all stacks in correct order** | `push` to `main` on infra changes + manual dispatch | Production rollout |
-| `validate-infra.yml` | Validate compose files + syntax | PR to `main`, `push` to `main`, manual dispatch | Each infra change |
+| `validate-infra.yml` | Validate compose files + syntax | PR to `main`, manual dispatch | Each infra change |
 | `debug-*.yml` | Troubleshooting utilities | Manual dispatch | Debugging only |
 
 ## Recommended Deployment Flow
@@ -58,7 +58,6 @@ verify (services healthy)
 
 **Inputs**:
 - `git_ref` (manual only): Branch/tag to deploy (default: main)
-- `auto_rollback` (manual only, optional): Rollback on failure (currently informational)
 
 **Outputs**:
 - ✓ Containers running
@@ -147,7 +146,8 @@ Ansible copies to `/srv/` and executes `docker compose up -d`.
 ### Post-Deployment Checks
 
 Verifies expected containers running:
-- nginx
+- nginx-private
+- nginx-public
 - seaweedfs
 - loki
 - prometheus

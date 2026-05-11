@@ -1,15 +1,21 @@
 services:
-  nginx:
+  nginx-private:
     ports:
-      - "${NGINX_BIND_IP:-0.0.0.0}:${NGINX_HTTP_PORT:-80}:80"
-      - "${NGINX_HTTPS_BIND_IP:-0.0.0.0}:${NGINX_HTTPS_PORT:-443}:443"
+      - "${NGINX_BIND_IP:-127.0.0.1}:${NGINX_HTTP_PORT:-80}:80"
     volumes:
       - /srv/apps/core/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - /srv/apps/core/nginx/conf.d:/etc/nginx/conf.d:ro
+      - /srv/apps/core/nginx/private/conf.d:/etc/nginx/conf.d:ro
+      - /srv/apps/core/nginx/snippets:/etc/nginx/snippets:ro
+      - /srv/logs/nginx-private:/var/log/nginx
+
+  nginx-public:
+    volumes:
+      - /srv/apps/core/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - /srv/apps/core/nginx/public/conf.d:/etc/nginx/conf.d:ro
       - /srv/apps/core/nginx/snippets:/etc/nginx/snippets:ro
       - /srv/apps/core/nginx/acme:/var/www/certbot:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
-      - /srv/logs/nginx:/var/log/nginx
+      - /srv/logs/nginx-public:/var/log/nginx
 
   seaweedfs:
     volumes:

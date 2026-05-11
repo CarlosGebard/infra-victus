@@ -2,9 +2,6 @@ server {
   listen 80 default_server;
   server_name _;
 
-  resolver 127.0.0.11 valid=10s ipv6=off;
-  resolver_timeout 5s;
-
   location = /healthz {
     access_log off;
     default_type text/plain;
@@ -16,44 +13,12 @@ server {
     try_files $uri =404;
   }
 
-  location = / {
+  location / {
     return 404;
-  }
-
-  location /seaweed/master/ {
-    include /etc/nginx/snippets/private-access.conf;
-    set $upstream seaweedfs:9333;
-    proxy_pass http://$upstream/;
-  }
-
-  location /seaweed/filer/ {
-    include /etc/nginx/snippets/private-access.conf;
-    set $upstream seaweedfs:8888;
-    proxy_pass http://$upstream/;
-  }
-
-  location /grafana/ {
-    include /etc/nginx/snippets/private-access.conf;
-    proxy_set_header X-Forwarded-Host $host;
-    proxy_set_header X-Forwarded-Prefix /grafana;
-    set $upstream grafana:3000;
-    proxy_pass http://$upstream/;
-  }
-
-  location /prometheus/ {
-    include /etc/nginx/snippets/private-access.conf;
-    set $upstream prometheus:9090;
-    proxy_pass http://$upstream/;
-  }
-
-  location /loki/ {
-    include /etc/nginx/snippets/private-access.conf;
-    set $upstream loki:3100;
-    proxy_pass http://$upstream/;
   }
 }
 
-{% for vhost in core_vhosts %}
+{% for vhost in core_vhosts | selectattr('exposure', 'equalto', 'public') %}
 {% if vhost.http.enabled | default(true) %}
 server {
   listen 80;
@@ -68,9 +33,6 @@ server {
   }
 
   location / {
-{% if vhost.access_policy | default('private') == 'private' %}
-    include /etc/nginx/snippets/private-access.conf;
-{% endif %}
 {% if vhost.http.redirect_to_https | default(false) %}
     return 301 https://$host$request_uri;
 {% else %}
@@ -88,7 +50,7 @@ server {
 {% endif %}
 {% endfor %}
 {% if core_tls_enabled | bool %}
-{% for vhost in core_vhosts %}
+{% for vhost in core_vhosts | selectattr('exposure', 'equalto', 'public') %}
 {% if vhost.https.enabled | default(false) %}
 server {
   listen 443 ssl;
@@ -105,9 +67,6 @@ server {
   ssl_prefer_server_ciphers off;
 
   location / {
-{% if vhost.access_policy | default('private') == 'private' %}
-    include /etc/nginx/snippets/private-access.conf;
-{% endif %}
 {% if vhost.preserve_host | default(false) %}
     proxy_set_header Host $http_host;
     proxy_set_header X-Forwarded-Host $http_host;

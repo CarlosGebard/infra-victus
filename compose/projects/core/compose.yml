@@ -1,11 +1,26 @@
 services:
-  nginx:
+  nginx-private:
     image: nginx:1.28.3-alpine
-    container_name: nginx
+    container_name: nginx-private
     restart: unless-stopped
     depends_on:
       seaweedfs:
         condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/healthz || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - edge
+      - core_backend
+      - shared_backend
+
+  nginx-public:
+    image: nginx:1.28.3-alpine
+    container_name: nginx-public
+    restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/healthz || exit 1"]
       interval: 30s

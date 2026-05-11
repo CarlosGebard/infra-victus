@@ -93,7 +93,7 @@ fi
 write_managed_env_block
 
 if [[ "$RECREATE_BOUND_SERVICES" -eq 1 ]]; then
-  docker compose --env-file "$ENV_FILE" -f "$COMPOSE_BASE" -f "$COMPOSE_OVERLAY" up -d --force-recreate nginx coredns "${COMPOSE_ARGS[@]}"
+  docker compose --env-file "$ENV_FILE" -f "$COMPOSE_BASE" -f "$COMPOSE_OVERLAY" up -d --force-recreate nginx-private coredns "${COMPOSE_ARGS[@]}"
 else
   docker compose --env-file "$ENV_FILE" -f "$COMPOSE_BASE" -f "$COMPOSE_OVERLAY" up -d "${COMPOSE_ARGS[@]}"
 fi

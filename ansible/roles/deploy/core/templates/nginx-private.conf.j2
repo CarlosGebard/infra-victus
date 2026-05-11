@@ -1,7 +1,7 @@
 server {
   listen 80 default_server;
   server_name _;
-  
+
   resolver 127.0.0.11 valid=10s ipv6=off;
   resolver_timeout 5s;
 
@@ -43,18 +43,29 @@ server {
   }
 }
 
+{% for vhost in core_vhosts | selectattr('exposure', 'equalto', 'private') %}
+{% if vhost.http.enabled | default(true) %}
 server {
   listen 80;
-  server_name s3.victus.io *.s3.victus.io s3.carlosjg.space;
+  server_name {{ vhost.domains | join(' ') }};
 
   resolver 127.0.0.11 valid=10s ipv6=off;
   resolver_timeout 5s;
 
   location / {
+{% if vhost.http.redirect_to_https | default(false) %}
+    return 301 https://$host$request_uri;
+{% else %}
+{% if vhost.preserve_host | default(false) %}
     proxy_set_header Host $http_host;
     proxy_set_header X-Forwarded-Host $http_host;
+{% endif %}
     proxy_set_header X-Forwarded-Proto $scheme;
-    set $upstream seaweedfs:8333;
+    set $upstream {{ vhost.upstream }};
     proxy_pass http://$upstream;
+{% endif %}
   }
 }
+
+{% endif %}
+{% endfor %}

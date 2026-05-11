@@ -129,8 +129,10 @@ Deploy no hace `down/up` global. Aplica acciones puntuales por stack según tipo
 Mapa actual:
 
 - `core`
-  - `nginx.conf` o `nginx/conf.d/core.conf` -> restart `nginx`
-  - `core.env` -> recreate `nginx`, `seaweedfs`
+  - `nginx.conf` -> restart `nginx-private` y `nginx-public`
+  - `nginx/private/conf.d/core.conf` -> restart `nginx-private`
+  - `nginx/public/conf.d/core.conf` -> restart `nginx-public`
+  - `core.env` -> recreate `nginx-private`, `seaweedfs`, `coredns`
   - `seaweed-s3.json` -> recreate `seaweedfs`
 - `observability`
   - `loki/config.yml` -> restart `loki`
@@ -143,13 +145,20 @@ Razón:
 - secretos o variables de entorno deben entrar al proceso al crear contenedor otra vez
 - reinicio/recreate dirigido reduce churn y downtime frente a recrear stack completo
 
-## Exposición pública
+## Edges HTTP
 
-Política actual de edge:
+`core` separa edges:
 
-- rutas `/seaweed/master/`, `/seaweed/filer/`, `/grafana/`, `/prometheus/`, `/loki/` solo aceptan origen Tailscale
+- `nginx-private`: bind a IP Tailscale, HTTP privado, sin certbot
+- `nginx-public`: reservado para futuros servicios públicos, sin puertos publicados por ahora
+
+Durante la migración desde el edge único anterior, deploy elimina el contenedor legado `nginx` para liberar puertos antes de crear `nginx-private` y `nginx-public`.
+
+Política actual de `nginx-private`:
+
+- rutas `/seaweed/master/`, `/seaweed/filer/`, `/grafana/`, `/prometheus/`, `/loki/` solo son alcanzables por Tailscale porque el puerto se publica en `NGINX_BIND_IP`
 - S3 usa virtual-host style por `s3.victus.io` y `*.s3.victus.io`
-- server blocks `seaweed.*`, `filer.*`, `s3.*` también quedan restringidos a rangos Tailscale `100.64.0.0/10` y `fd7a:115c:a1e0::/48`
+- server blocks `seaweed.*`, `filer.*`, `s3.*` no usan allow/deny interno por IP; Docker bridge oculta la IP real del cliente
 
 Nota:
 
@@ -157,7 +166,7 @@ Nota:
 - endpoint S3 privado esperado: `http://s3.victus.io`
 - ejemplo AWS CLI: `aws --endpoint-url http://s3.victus.io s3 ls`
 - buckets virtual-host style usan `<bucket>.s3.victus.io`
-- path `/.well-known/acme-challenge/` sigue público para certbot HTTP-01
+- `nginx-public` conserva `/.well-known/acme-challenge/` para futura emisión HTTP-01
 
 ## Nota operacional
 
