@@ -6,6 +6,11 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 ENV_FILE="$ROOT_DIR/compose/projects/core/.env"
 COMPOSE_BASE="$ROOT_DIR/compose/projects/core/compose.yml"
 COMPOSE_OVERLAY="$ROOT_DIR/compose/projects/core/compose.dev.yml"
+S3_BUCKETS_SCRIPT="$ROOT_DIR/ops/scripts/runtime/apply-s3-buckets.py"
+S3_BUCKETS_CONTRACT="$ROOT_DIR/compose/configs/seaweedfs/buckets.json"
+SEAWEED_S3_CONFIG="$ROOT_DIR/compose/configs/seaweedfs/s3.json.example"
+DB_MIGRATIONS_SCRIPT="$ROOT_DIR/ops/scripts/runtime/apply-postgres-migrations.sh"
+DB_MIGRATIONS_DIR="$ROOT_DIR/ops/db"
 LOCAL_DNS_BIND="${LOCAL_DNS_BIND:-loopback}"
 COMPOSE_ARGS=()
 
@@ -101,3 +106,22 @@ fi
 CORE_ENV_FILE="$ENV_FILE" \
 CORE_COMPOSE_OVERLAY="$COMPOSE_OVERLAY" \
 "$ROOT_DIR/ops/scripts/runtime/sync-core-dns.sh"
+
+VICTUS_DB_MIGRATIONS_DIR="$DB_MIGRATIONS_DIR" \
+CORE_ENV_FILE="$ENV_FILE" \
+POSTGRES_HOST=postgres \
+DOCKER_NETWORK=core_core_backend \
+"$DB_MIGRATIONS_SCRIPT"
+
+docker run --rm \
+  --network core_core_backend \
+  -v "$S3_BUCKETS_SCRIPT:/apply-s3-buckets.py:ro" \
+  -v "$S3_BUCKETS_CONTRACT:/buckets.json:ro" \
+  -v "$SEAWEED_S3_CONFIG:/seaweed-s3.json:ro" \
+  python:3.12-alpine \
+  python /apply-s3-buckets.py \
+    --contract /buckets.json \
+    --seaweed-s3-config /seaweed-s3.json \
+    --endpoint http://seaweedfs:8333 \
+    --wait-timeout 120 \
+    --wait-interval 3

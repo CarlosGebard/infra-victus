@@ -1,15 +1,13 @@
 {
   "buckets": [
     {
-      "name": "victus-rag",
+      "name": "victus-corpus",
       "prefixes": [
-        "pipeline/01_metadata/",
-        "pipeline/02_normalized_pdfs/",
-        "pipeline/03_docling_heuristics/",
-        "pipeline/04_claims/",
-        "rag/experiments/",
-        "rag/embeddings/",
-        "rag/retrieval/"
+        "papers/",
+        "analytics/jobs/",
+        "analytics/reports/",
+        "analytics/reports/2026-05-11/",
+        "registry_backups/"
       ]
     },
     {

@@ -78,6 +78,7 @@ All secrets fetched via Infisical + OIDC at runtime. None stored in GitHub.
 | `PROD_SSH_KNOWN_HOSTS` | All | Infisical env (optional) |
 | `SEAWEED_S3_ACCESS_KEY` | core | Infisical env |
 | `SEAWEED_S3_SECRET_KEY` | core | Infisical env |
+| `POSTGRES_PASSWORD` | core | Infisical env |
 | `GRAFANA_ADMIN_PASSWORD` | observability | Infisical env |
 
 **Verify before deploying**:
@@ -87,6 +88,7 @@ All secrets fetched via Infisical + OIDC at runtime. None stored in GitHub.
 ✓ PROD_SSH_PRIVATE_KEY
 ✓ SEAWEED_S3_ACCESS_KEY
 ✓ SEAWEED_S3_SECRET_KEY
+✓ POSTGRES_PASSWORD
 ✓ GRAFANA_ADMIN_PASSWORD
 ```
 

@@ -93,6 +93,24 @@
     fail_msg: "Missing required core file: {{ item.item }}"
   loop: "{{ deploy_core_required_files.results }}"
 
+- name: Read core runtime env
+  ansible.builtin.slurp:
+    path: "{{ deploy_stack.env_path }}"
+  register: deploy_core_runtime_env_raw
+
+- name: Validate core database runtime env
+  ansible.builtin.assert:
+    that:
+      - deploy_core_postgres_password is not none
+      - deploy_core_postgres_password | length >= 16
+      - deploy_core_postgres_password != 'change-me'
+    fail_msg: >-
+      Core runtime env at {{ deploy_stack.env_path }} must define POSTGRES_PASSWORD
+      with at least 16 characters and not use the local default.
+  vars:
+    deploy_core_runtime_env_text: "{{ deploy_core_runtime_env_raw.content | b64decode }}"
+    deploy_core_postgres_password: "{{ deploy_core_runtime_env_text | regex_findall('(?m)^POSTGRES_PASSWORD=(.+)$') | first | default(none) }}"
+
 - name: Copy core static config files
   ansible.builtin.copy:
     src: "{{ item.src }}"
@@ -112,13 +130,6 @@
     mode: "0644"
   loop: "{{ deploy_stack.compose_files }}"
   register: deploy_core_compose_copy
-
-- name: Remove legacy single nginx container
-  ansible.builtin.command:
-    cmd: docker rm -f nginx
-  register: deploy_core_remove_legacy_nginx
-  changed_when: deploy_core_remove_legacy_nginx.rc == 0
-  failed_when: false
 
 - name: Render private core nginx routing
   ansible.builtin.template:
@@ -388,6 +399,20 @@
     CORE_COMPOSE_OVERLAY: "{{ deploy_stack.project_dir }}/compose.prod.yml"
   register: deploy_core_dns_sync
   changed_when: "'Updated records:' in deploy_core_dns_sync.stdout"
+
+- name: Apply core Postgres migrations
+  ansible.builtin.command:
+    cmd: "{{ deploy_stack.project_dir }}/scripts/apply-postgres-migrations.sh"
+  environment:
+    VICTUS_DB_MIGRATIONS_DIR: "{{ deploy_stack.project_dir }}/db"
+    CORE_ENV_FILE: "{{ deploy_stack.env_path }}"
+    POSTGRES_HOST: postgres
+    DOCKER_NETWORK: core_core_backend
+  register: deploy_core_postgres_migrations
+  retries: 3
+  delay: 10
+  until: deploy_core_postgres_migrations.rc == 0
+  changed_when: "'Running upgrade' in deploy_core_postgres_migrations.stdout"
 
 - name: Apply SeaweedFS S3 bucket contract
   ansible.builtin.command:

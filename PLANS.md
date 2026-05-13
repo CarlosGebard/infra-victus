@@ -3,7 +3,7 @@ Dejar `infra-victus` operable sin CouchDB, con DNS privado `victus.io` respaldad
 
 ## Current State
 - Stack `personal`/CouchDB fue retirado del repositorio.
-- Stack `core` incluye `nginx`, `seaweedfs`, `etcd` y `coredns`.
+- Stack `core` incluye `nginx`, `seaweedfs`, `etcd`, `coredns`, `postgres` y `redis`.
 - `make core-up` levanta `core` local y sincroniza `s3.victus.io`.
 - CoreDNS responde `s3.victus.io` y cualquier nombre que termine en `.s3.victus.io` con la IP de NGINX usando `template`.
 - `sync-core-dns.sh` también deja registro SkyDNS de hoja para inspección/compatibilidad:
@@ -29,7 +29,7 @@ Validation:
 - `make compose-validate`
 - En VPS tras deploy:
   - `curl -v http://s3.victus.io/`
-  - `curl -v http://victus-rag.s3.victus.io/`
+  - `curl -v http://victus-corpus.s3.victus.io/`
   - `aws --endpoint-url http://s3.victus.io s3api list-buckets`
 
 Risk:
@@ -71,18 +71,23 @@ Current:
   - `http://seaweedfs:8333`
 
 Managed buckets:
-- `victus-rag`
+- `victus-corpus`
 - `victus-backups`
 - `victus-tmp`
 
-Managed `victus-rag` prefixes:
-- `pipeline/01_metadata/`
-- `pipeline/02_normalized_pdfs/`
-- `pipeline/03_docling_heuristics/`
-- `pipeline/04_claims/`
-- `rag/experiments/`
-- `rag/embeddings/`
-- `rag/retrieval/`
+Managed `victus-corpus` prefixes:
+- `papers/`
+- `analytics/jobs/`
+- `analytics/reports/`
+- `analytics/reports/2026-05-11/`
+- `registry_backups/`
+
+Per-paper layout:
+- `papers/{sha256_hash}/raw/source.pdf`
+- `papers/{sha256_hash}/stages/01_metadata/`
+- `papers/{sha256_hash}/stages/02_normalized/`
+- `papers/{sha256_hash}/stages/03_docling/`
+- `papers/{sha256_hash}/stages/04_claims/`
 
 Validation:
 - `docker run --rm --network core_core_backend ... python /apply-s3-buckets.py`
@@ -107,6 +112,100 @@ Validation:
 
 Risk:
 - Port `53` conflicts with local resolver or host DNS service.
+
+### 3.5 Core Registry and Event Bus
+Goal:
+- Agregar Postgres como registry durable de papers y Redis como Streams privado.
+
+Current:
+- Postgres service: `postgres`
+- Redis service: `redis`
+- Both connect to `core_backend` and external `infra_shared_backend`.
+- Postgres schema migrations:
+  - `ops/db/migrations/versions/0001_create_paper_registry.py`
+- Main table:
+  - `paper_registry`
+
+Redis stream:
+- `victus:events`
+
+Event types:
+- `victus:artifact:done`
+- `victus:stage:started`
+- `victus:stage:done`
+- `victus:error`
+
+Docling output path:
+- `papers/{sha256_hash}/stages/03_docling/final.json`
+
+Validation:
+- `docker compose --env-file compose/env/core.env.example -f compose/projects/core/compose.yml -f compose/projects/core/compose.dev.yml config`
+- `docker compose ... up -d postgres redis`
+- `docker compose ... exec postgres pg_isready`
+- `docker compose ... exec redis redis-cli ping`
+
+Risk:
+- External consumers must use `XREADGROUP`/`XACK` correctly to avoid pending-message buildup.
+
+### 3.6 Reusable Victus Bridge
+Goal:
+- Mantener un SDK/CLI interno reusable para comunicación entre repositorios Victus.
+
+Current:
+- Package:
+  - `ops/bridge`
+- Entrypoint:
+  - `uv run victus-ingest`
+- Core modules:
+  - `config.py`
+  - `bridge.py`
+  - `registry.py`
+  - `storage.py`
+  - `events.py`
+  - `schemas.py`
+  - `cli.py`
+
+Allowed responsibilities:
+- Load env config.
+- Register/read paper state in Postgres.
+- Upload/reference S3 artifacts.
+- Publish Redis events.
+- Expose generic stage/artifact/event/error methods.
+
+Non-goals:
+- No Docling logic.
+- No claims extraction.
+- No embeddings.
+- No Qdrant logic.
+- No worker-specific orchestration.
+
+Validation:
+- `cd ops/bridge && uv run victus-ingest --help`
+- `python3 -m compileall -q ops/bridge/victus_ingest_bridge`
+
+### 3.7 Redis Streams Event Bus
+Goal:
+- Migrar eventos del bridge desde Redis Pub/Sub a Redis Streams durable.
+- Usar `redis-py` en vez de protocolo RESP manual.
+
+Scope:
+- Productores publican con `XADD`.
+- Cada evento queda en stream `victus:events`.
+- Payload completo se guarda como JSON en campo `payload`.
+- `event_type`, `paper_id` y `timestamp` quedan como campos indexables simples.
+
+Non-goals:
+- No implementar consumers/workers en este repo.
+- No crear consumer groups automáticamente en publish.
+- No cambiar Postgres como source of truth.
+
+Validation:
+- `cd ops/bridge && uv lock`
+- `cd ops/bridge && uv run victus-ingest --help`
+- `python3 -m compileall -q ops/bridge/victus_ingest_bridge`
+
+Risk:
+- Requiere coordinar consumidores externos para leer Streams con `XREADGROUP` y ACK.
 
 ### 4. DNS Sync In Production Deploy
 Goal:

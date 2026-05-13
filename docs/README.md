@@ -1,46 +1,35 @@
-# Docs Overview
+# Documentación
 
-Este repositorio define una infraestructura pequeña, separada por capas y por dominio.
+Esta carpeta contiene solo documentos vivos y operativos.
 
-## Capas
+## Orden De Lectura
 
-- `server-bootstrap`
-  - vive fuera de este repo
-  - prepara el host base y baseline reusable
+1. [Setup](setup.md)
+2. [Arquitectura](architecture.md)
+3. [Contratos](contracts.md)
+4. [Operación](operations.md)
+5. [Seguridad](security.md)
+6. [Roadmap](roadmap.md)
 
-- `deploy`
-  - copia compose y configs desde el repo al host
-  - stagea secretos runtime desde GitHub Actions
-  - ejecuta `docker compose up -d`
-  - aplica configuración específica de Alloy para este stack
+## Plantilla Para Otros Repos
 
-## Stacks
+Usar esta estructura base:
 
-- `core`
-  - `nginx`
-  - `seaweedfs`
-  - `etcd`
-  - `coredns`
+```text
+README.md              qué es, cómo correr, cómo validar
+docs/setup.md          instalación local y variables
+docs/architecture.md   componentes y límites
+docs/contracts.md      APIs, eventos, storage, schemas
+docs/operations.md     deploy, logs, rollback, troubleshooting
+docs/security.md       secretos, permisos, red, datos sensibles
+docs/roadmap.md        próximos pasos y deuda técnica
+```
 
-- `observability`
-  - `loki`
-  - `prometheus`
-  - `grafana`
+Regla:
 
-## Principio clave
+- README corto.
+- Docs con comandos reales.
+- Sin decisiones históricas largas.
+- Sin duplicar contenido.
+- Si algo cambia el uso, actualizar docs en el mismo commit.
 
-Compose es la fuente de verdad del runtime.
-Ansible no bootstrappea el host; distribuye archivos del stack y ejecuta despliegue.
-
-## Entry points
-
-- `make ansible-check`
-- `make compose-validate`
-- `.github/workflows/deploy-all.yml`
-
-## Documentos clave
-
-- secrets y variables: [docs/secrets-and-variables.md](/home/carlos/victus/infra-victus/docs/secrets-and-variables.md)
-- contrato DNS privado: [docs/private-dns-contract.md](/home/carlos/victus/infra-victus/docs/private-dns-contract.md)
-- README en español: [docs/README.es.md](/home/carlos/victus/infra-victus/docs/README.es.md)
-- ADR estructura operativa: [docs/adr/0001-structure-decisions.md](/home/carlos/victus/infra-victus/docs/adr/0001-structure-decisions.md)

@@ -1,0 +1,12 @@
+[project]
+name = "victus-db-migrations"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+  "alembic>=1.16,<2",
+  "psycopg[binary]>=3.2,<4",
+]
+
+[tool.uv]
+package = false
+

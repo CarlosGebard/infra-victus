@@ -30,3 +30,11 @@ services:
       - "${COREDNS_BIND_IP:-127.0.0.1}:${COREDNS_DNS_PORT:-1053}:53/udp"
     volumes:
       - ../../configs/coredns/Corefile:/etc/coredns/Corefile:ro
+
+  postgres:
+    volumes:
+      - ../../.tmp/core/postgres/data:/var/lib/postgresql/data
+
+  redis:
+    volumes:
+      - ../../.tmp/core/redis/data:/data

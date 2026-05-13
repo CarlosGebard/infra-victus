@@ -1,158 +1,100 @@
 # Victus Infra
 
-Reproducible infrastructure for the Victus VPS and private RAG data platform.
+Reproducible infrastructure for the private Victus runtime.
 
-This repository manages the application infrastructure layer. Host bootstrap is intentionally handled by the sibling `server-bootstrap` repository.
+This repository does not contain the application. It provides the shared runtime used by other Victus repositories:
+
+- object storage and artifacts in SeaweedFS S3
+- durable paper state in Postgres
+- live events in Redis
+- private DNS with CoreDNS
+- private edge routing with NGINX
+- observability with Grafana, Prometheus, and Loki
+- deployment with Ansible and GitHub Actions
 
 [Leer en español](docs/README.es.md)
 
-## Purpose
-
-`infra-victus` provides a small, explicit, Docker Compose based runtime for:
-
-- private object storage for RAG data
-- private DNS over Tailscale
-- edge routing through NGINX
-- observability with Grafana, Prometheus, and Loki
-- repeatable deploys through Ansible and GitHub Actions
-
-The RAG application itself is still in development. The storage foundation is implemented: SeaweedFS S3, private virtual-host routing, declarative buckets, and RAG data prefixes.
-
-Next major infrastructure addition: Qdrant for vector storage.
-
-## Architecture
-
-
-Operational automation:
+## Quick View
 
 ```text
-ansible/
-ops/
-.github/workflows/
+compose/        Docker Compose source of truth
+ansible/        VPS deployment
+ops/            scripts and reusable bridge
+docs/           essential documentation
+tests/          Ansible validation
 ```
 
-## Services
-
-### Core
-
-- `nginx`
-  - private edge router
-  - S3 virtual-host routing
-  - internal routes for SeaweedFS and observability
-- `seaweedfs`
-  - S3-compatible object storage
-  - stores RAG raw data, normalized documents, extraction outputs, embeddings inputs, and backups
-- `etcd`
-  - backing store for private DNS records
-  - internal only, not exposed to the host
-- `coredns`
-  - private authoritative DNS for `victus.io`
-  - serves `s3.victus.io` and `*.s3.victus.io`
-
-### Observability
-
-- `grafana`
-- `prometheus`
-- `loki`
-
-## RAG Storage Contract
-
-Declarative S3 bucket contract:
+Stacks:
 
 ```text
-compose/configs/seaweedfs/buckets.json
+core            nginx, seaweedfs, postgres, redis, etcd, coredns
+observability   grafana, prometheus, loki
 ```
 
-Managed buckets:
+## Local Use
 
-```text
-victus-rag
-victus-backups
-victus-tmp
-```
-
-Managed prefixes under `victus-rag`:
-
-```text
-pipeline/01_metadata/
-pipeline/02_normalized_pdfs/
-pipeline/03_docling_heuristics/
-pipeline/04_claims/
-rag/experiments/
-rag/embeddings/
-rag/retrieval/
-```
-
-The deploy applies this contract idempotently. It creates missing buckets and `.keep` objects for missing prefixes. It does not delete existing data.
-
-## Local Development
-
-Validate configuration:
+Validate:
 
 ```bash
-make compose-validate
 make ansible-check
+make compose-validate
 ```
 
-Run core locally:
+Start `core`:
 
 ```bash
 make core-up
 ```
 
-Run core locally and expose DNS/NGINX on the local Tailscale IP:
+This also applies local S3 buckets idempotently.
+
+Logs:
 
 ```bash
-make core-up-tailscale
-# or:
-./ops/scripts/local/up-core.sh --tailscale
+make core-logs
 ```
 
-## Deploy Model
+Stop:
 
-Rollout order:
+```bash
+make core-down
+```
+
+## Reusable Bridge
+
+The shared SDK/CLI lives in:
 
 ```text
-observability -> core
+ops/bridge
 ```
 
-Deploy is handled by:
+Example:
+
+```bash
+cd ops/bridge
+uv run victus-ingest --help
+```
+
+The bridge only talks to shared infrastructure. It does not implement Docling, claims, embeddings, Qdrant, or app-specific logic.
+
+## Deployment
+
+Production deploy runs through:
 
 ```text
 .github/workflows/deploy-all.yml
 ```
 
-Validation is handled by:
-
-```text
-.github/workflows/validate-infra.yml
-```
-
-Secrets are fetched through Infisical using GitHub OIDC.
+Secrets come from Infisical through GitHub OIDC.
 
 ## Documentation
 
-- [Docs overview](docs/README.md)
-- [Deploy runbook](docs/runbooks/deploy.md)
-- [Private DNS contract](docs/private-dns-contract.md)
-- [Secrets and variables](docs/secrets-and-variables.md)
-- [ADR: structure decisions](docs/adr/0001-structure-decisions.md)
-- [ADR: private DNS with CoreDNS and etcd](docs/adr/0002-core-private-dns-with-coredns-etcd.md)
+- [Español](docs/README.es.md)
+- [Docs](docs/README.md)
+- [Setup](docs/setup.md)
+- [Architecture](docs/architecture.md)
+- [Contracts](docs/contracts.md)
+- [Operations](docs/operations.md)
+- [Security](docs/security.md)
+- [Roadmap](docs/roadmap.md)
 
-## Status
-
-Completed:
-
-- Docker Compose runtime split into `core` and `observability`
-- CouchDB removed from infrastructure
-- SeaweedFS S3 storage
-- private DNS with CoreDNS
-- S3 virtual-host routing
-- declarative RAG buckets and prefixes
-- deployment automation through Ansible/GitHub Actions
-
-In progress / next:
-
-- Qdrant service for vector search
-- Grafana dashboard and datasource provisioning
-- RAG application workloads
