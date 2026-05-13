@@ -102,6 +102,7 @@ PROD_SSH_KNOWN_HOSTS         # Optional: ssh-keyscan output
 SEAWEED_S3_ACCESS_KEY        # SeaweedFS S3 credentials
 SEAWEED_S3_SECRET_KEY
 POSTGRES_PASSWORD            # Postgres victus user password
+REDIS_PASSWORD               # Redis requirepass password
 
 GRAFANA_ADMIN_PASSWORD       # Grafana admin password
 ```

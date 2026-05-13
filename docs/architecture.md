@@ -35,9 +35,9 @@ edge                  edge NGINX
 
 Servicios pensados para otros repos:
 ```text
-postgres
-redis
-seaweedfs
+postgres.victus.io:5432
+redis.victus.io:6379
+s3.victus.io
 ```
 
 ## Datos

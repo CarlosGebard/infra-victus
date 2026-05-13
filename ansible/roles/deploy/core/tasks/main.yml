@@ -55,6 +55,16 @@
     'Rule added' in deploy_core_ufw_allow_rule.stdout or
     'Rules updated' in deploy_core_ufw_allow_rule.stdout
 
+- name: Allow private TCP services through Tailscale only
+  ansible.builtin.command: "ufw allow in on {{ networking.private_dns.tailscale_interface }} to any port {{ item }} proto tcp"
+  loop:
+    - 5432
+    - 6379
+  register: deploy_core_ufw_allow_private_tcp
+  changed_when: >-
+    'Rule added' in deploy_core_ufw_allow_private_tcp.stdout or
+    'Rules updated' in deploy_core_ufw_allow_private_tcp.stdout
+
 - name: Check whether core TLS certificate already exists
   ansible.builtin.stat:
     path: "/etc/letsencrypt/live/{{ core_cert_name }}/fullchain.pem"
@@ -104,12 +114,16 @@
       - deploy_core_postgres_password is not none
       - deploy_core_postgres_password | length >= 16
       - deploy_core_postgres_password != 'change-me'
+      - deploy_core_redis_password is not none
+      - deploy_core_redis_password | length >= 16
+      - deploy_core_redis_password != 'change-me'
     fail_msg: >-
       Core runtime env at {{ deploy_stack.env_path }} must define POSTGRES_PASSWORD
-      with at least 16 characters and not use the local default.
+      and REDIS_PASSWORD with at least 16 characters and not use local defaults.
   vars:
     deploy_core_runtime_env_text: "{{ deploy_core_runtime_env_raw.content | b64decode }}"
     deploy_core_postgres_password: "{{ deploy_core_runtime_env_text | regex_findall('(?m)^POSTGRES_PASSWORD=(.+)$') | first | default(none) }}"
+    deploy_core_redis_password: "{{ deploy_core_runtime_env_text | regex_findall('(?m)^REDIS_PASSWORD=(.+)$') | first | default(none) }}"
 
 - name: Copy core static config files
   ansible.builtin.copy:

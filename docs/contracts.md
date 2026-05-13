@@ -35,6 +35,12 @@ Database:
 victus_registry
 ```
 
+Private DNS:
+
+```text
+postgres.victus.io:5432
+```
+
 Tabla:
 
 ```text
@@ -57,6 +63,12 @@ updated_at   timestamptz
 ## Redis
 
 Redis es event log operacional durable usando Streams.
+
+Private DNS:
+
+```text
+redis.victus.io:6379
+```
 
 Stream principal:
 
@@ -121,4 +133,6 @@ S3:
 ```text
 s3.victus.io
 *.s3.victus.io
+postgres.victus.io
+redis.victus.io
 ```

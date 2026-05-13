@@ -54,12 +54,20 @@ Variables esperadas por el bridge:
 
 ```text
 VICTUS_PG_DSN=postgresql://victus:<password>@postgres:5432/victus_registry
-VICTUS_REDIS_URL=redis://redis:6379/0
+VICTUS_REDIS_URL=redis://:<password>@redis:6379/0
 VICTUS_S3_ENDPOINT=http://seaweedfs:8333
 VICTUS_S3_ACCESS_KEY=<access-key>
 VICTUS_S3_SECRET_KEY=<secret-key>
 VICTUS_S3_BUCKET=victus-corpus
 VICTUS_AWS_REGION=us-east-1
+```
+
+Desde otros hosts en la tailnet:
+
+```text
+VICTUS_PG_DSN=postgresql://victus:<password>@postgres.victus.io:5432/victus_registry
+VICTUS_REDIS_URL=redis://:<password>@redis.victus.io:6379/0
+VICTUS_S3_ENDPOINT=http://s3.victus.io
 ```
 
 ## Validación Rápida
@@ -70,4 +78,3 @@ make compose-validate
 python3 -m compileall -q ops/bridge/victus_ingest_bridge
 cd ops/bridge && UV_PROJECT_ENVIRONMENT=/tmp/victus-bridge-uv-env uv run victus-ingest --help
 ```
-

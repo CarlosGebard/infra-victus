@@ -121,6 +121,9 @@ Current:
 - Postgres service: `postgres`
 - Redis service: `redis`
 - Both connect to `core_backend` and external `infra_shared_backend`.
+- Both are exposed for tailnet clients through Tailscale-bound TCP ports:
+  - `postgres.victus.io:5432`
+  - `redis.victus.io:6379`
 - Postgres schema migrations:
   - `ops/db/migrations/versions/0001_create_paper_registry.py`
 - Main table:
@@ -142,7 +145,7 @@ Validation:
 - `docker compose --env-file compose/env/core.env.example -f compose/projects/core/compose.yml -f compose/projects/core/compose.dev.yml config`
 - `docker compose ... up -d postgres redis`
 - `docker compose ... exec postgres pg_isready`
-- `docker compose ... exec redis redis-cli ping`
+- `docker compose ... exec redis sh -c 'redis-cli -a "$REDIS_PASSWORD" ping'`
 
 Risk:
 - External consumers must use `XREADGROUP`/`XACK` correctly to avoid pending-message buildup.

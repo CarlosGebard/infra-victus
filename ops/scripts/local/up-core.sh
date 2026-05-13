@@ -48,7 +48,7 @@ write_managed_env_block() {
     BEGIN { skip=0 }
     /^# BEGIN managed: core-private-dns$/ { skip=1; next }
     /^# END managed: core-private-dns$/ { skip=0; next }
-    $1 ~ /^(TAILSCALE_INTERFACE|TAILSCALE_IPV4|DNS_ZONE|ETCD_PREFIX|DNS_TTL|COREDNS_BIND_IP|COREDNS_DNS_PORT|NGINX_BIND_IP|NGINX_HTTP_PORT|S3_DOMAIN)=/ { next }
+    $1 ~ /^(TAILSCALE_INTERFACE|TAILSCALE_IPV4|DNS_ZONE|ETCD_PREFIX|DNS_TTL|COREDNS_BIND_IP|COREDNS_DNS_PORT|NGINX_BIND_IP|NGINX_HTTP_PORT|S3_DOMAIN|POSTGRES_DOMAIN|POSTGRES_BIND_IP|POSTGRES_PORT|REDIS_DOMAIN|REDIS_BIND_IP|REDIS_PORT)=/ { next }
     skip == 0 { print }
   ' "$ENV_FILE" > "$tmp_file"
 
@@ -64,6 +64,12 @@ COREDNS_DNS_PORT=$COREDNS_DNS_PORT
 NGINX_BIND_IP=$NGINX_BIND_IP
 NGINX_HTTP_PORT=$NGINX_HTTP_PORT
 S3_DOMAIN=${S3_DOMAIN:-s3.${DNS_ZONE:-victus.io}}
+POSTGRES_DOMAIN=${POSTGRES_DOMAIN:-postgres.${DNS_ZONE:-victus.io}}
+POSTGRES_BIND_IP=$POSTGRES_BIND_IP
+POSTGRES_PORT=${POSTGRES_PORT:-5432}
+REDIS_DOMAIN=${REDIS_DOMAIN:-redis.${DNS_ZONE:-victus.io}}
+REDIS_BIND_IP=$REDIS_BIND_IP
+REDIS_PORT=${REDIS_PORT:-6379}
 # END managed: core-private-dns
 EOF
 
@@ -84,6 +90,8 @@ if [[ "$LOCAL_DNS_BIND" == "tailscale" ]]; then
   export COREDNS_BIND_IP="${COREDNS_BIND_IP:-$TAILSCALE_IPV4}"
   export NGINX_BIND_IP="${NGINX_BIND_IP:-$TAILSCALE_IPV4}"
   export NGINX_HTTP_PORT="${NGINX_HTTP_PORT:-8080}"
+  export POSTGRES_BIND_IP="${POSTGRES_BIND_IP:-$TAILSCALE_IPV4}"
+  export REDIS_BIND_IP="${REDIS_BIND_IP:-$TAILSCALE_IPV4}"
   RECREATE_BOUND_SERVICES=1
 else
   export TAILSCALE_INTERFACE="${TAILSCALE_INTERFACE:-lo}"
@@ -92,13 +100,15 @@ else
   export COREDNS_BIND_IP="${COREDNS_BIND_IP:-127.0.0.1}"
   export NGINX_BIND_IP="${NGINX_BIND_IP:-127.0.0.1}"
   export NGINX_HTTP_PORT="${NGINX_HTTP_PORT:-8080}"
+  export POSTGRES_BIND_IP="${POSTGRES_BIND_IP:-127.0.0.1}"
+  export REDIS_BIND_IP="${REDIS_BIND_IP:-127.0.0.1}"
   RECREATE_BOUND_SERVICES=0
 fi
 
 write_managed_env_block
 
 if [[ "$RECREATE_BOUND_SERVICES" -eq 1 ]]; then
-  docker compose --env-file "$ENV_FILE" -f "$COMPOSE_BASE" -f "$COMPOSE_OVERLAY" up -d --force-recreate nginx-private coredns "${COMPOSE_ARGS[@]}"
+  docker compose --env-file "$ENV_FILE" -f "$COMPOSE_BASE" -f "$COMPOSE_OVERLAY" up -d --force-recreate nginx-private coredns postgres redis "${COMPOSE_ARGS[@]}"
 else
   docker compose --env-file "$ENV_FILE" -f "$COMPOSE_BASE" -f "$COMPOSE_OVERLAY" up -d "${COMPOSE_ARGS[@]}"
 fi

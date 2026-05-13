@@ -63,6 +63,7 @@ PROD_SSH_PRIVATE_KEY
 SEAWEED_S3_ACCESS_KEY
 SEAWEED_S3_SECRET_KEY
 POSTGRES_PASSWORD
+REDIS_PASSWORD
 GRAFANA_ADMIN_PASSWORD
 ```
 
@@ -88,7 +89,7 @@ docker compose \
   --env-file compose/projects/core/.env \
   -f compose/projects/core/compose.yml \
   -f compose/projects/core/compose.dev.yml \
-  exec redis redis-cli ping
+  exec redis sh -c 'redis-cli -a "$REDIS_PASSWORD" ping'
 ```
 
 ### Postgres Sin Tabla

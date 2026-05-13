@@ -16,9 +16,13 @@ Secretos requeridos:
 SEAWEED_S3_ACCESS_KEY
 SEAWEED_S3_SECRET_KEY
 POSTGRES_PASSWORD
+REDIS_PASSWORD
 GRAFANA_ADMIN_PASSWORD
 PROD_SSH_PRIVATE_KEY
 ```
+
+Postgres y Redis solo deben publicarse en la IP privada de Tailscale.
+NGINX no proxya esos servicios TCP.
 
 Runtime en servidor:
 
@@ -44,4 +48,3 @@ data     0750
 - No hay `__pycache__` staged.
 - No hay claves ni passwords reales.
 - Workflows no imprimen secretos.
-
