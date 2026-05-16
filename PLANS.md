@@ -12,6 +12,25 @@ Dejar `infra-victus` operable sin CouchDB, con DNS privado `victus.io` respaldad
 
 ## Important Remaining Work
 
+### 0.1 RAG Parquet Bucket Contract
+Goal:
+- Usar `victus-rag` para artefactos RAG derivados en SeaweedFS S3.
+
+Current:
+- `compose/configs/seaweedfs/buckets.json` declara `victus-rag`.
+- Prefixes gestionados:
+  - `staging/`
+  - `datasets/`
+  - `exports/`
+  - `tmp/`
+
+Non-goal:
+- No guardar papers crudos ni etapas fuente en `victus-rag`; eso sigue en `victus-corpus`.
+- No declarar particiones runtime como `emb_model=...`, `llm_model=...` o `snapshot_date=...`.
+
+Validation:
+- `make compose-validate`
+
 ### 0. Declarative NGINX Vhosts
 Goal:
 - Convertir routing NGINX de `core` a modelo declarativo por vhost/endpoint.

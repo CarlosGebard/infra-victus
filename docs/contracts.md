@@ -27,6 +27,28 @@ Contrato declarativo:
 compose/configs/seaweedfs/buckets.json
 ```
 
+Bucket RAG:
+
+```text
+victus-rag
+```
+
+Layout:
+
+```text
+staging/    crudos temporales antes de procesar
+datasets/   datasets Parquet derivados
+exports/    backups y snapshots salientes
+tmp/        operaciones intermedias descartables
+```
+
+Regla:
+
+```text
+victus-corpus guarda papers y etapas fuente
+victus-rag guarda solo artefactos RAG derivados
+```
+
 ## Postgres
 
 Database:

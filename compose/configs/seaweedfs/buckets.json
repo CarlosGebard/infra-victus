@@ -11,6 +11,15 @@
       ]
     },
     {
+      "name": "victus-rag",
+      "prefixes": [
+        "staging/",
+        "datasets/",
+        "exports/",
+        "tmp/"
+      ]
+    },
+    {
       "name": "victus-backups",
       "prefixes": []
     },
