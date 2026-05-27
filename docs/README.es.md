@@ -89,11 +89,12 @@ Los secretos vienen desde Infisical vía GitHub OIDC.
 
 ## Documentación
 
-- [Docs](README.md)
-- [Setup](setup.md)
-- [Arquitectura](architecture.md)
-- [Contratos](contracts.md)
-- [Operación](operations.md)
-- [Seguridad](security.md)
-- [Roadmap](roadmap.md)
-
+- [Índice de documentación](README.md)
+- [Contexto del sistema](000-SYSTEM-CONTEXT.md)
+- [Arquitectura](100-ARCHITECTURE.md)
+- [Operación](200-OPERATIONS.md)
+- [Contratos](300-CONTRACTS.md)
+- [Runtime local](operations/local-runtime.md)
+- [Deploy](operations/deployment.md)
+- [Seguridad operativa](operations/security.md)
+- [Troubleshooting](operations/troubleshooting.md)
