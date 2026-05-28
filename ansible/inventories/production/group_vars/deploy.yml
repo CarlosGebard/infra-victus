@@ -130,3 +130,42 @@ deploy:
         dest: "{{ srv_apps_root }}/observability/prometheus/prometheus.yml"
         restart_services:
           - prometheus
+
+  llm:
+    name: llm
+    project_dir: "{{ srv_apps_root }}/llm"
+    compose_files:
+      - src: "{{ playbook_dir }}/../../compose/projects/llm/compose.yml"
+        dest: "{{ srv_apps_root }}/llm/compose.yml"
+      - src: "{{ playbook_dir }}/../../compose/projects/llm/compose.prod.yml"
+        dest: "{{ srv_apps_root }}/llm/compose.prod.yml"
+    compose_cli_files:
+      - "{{ srv_apps_root }}/llm/compose.yml"
+      - "{{ srv_apps_root }}/llm/compose.prod.yml"
+    env_path: "{{ srv_secrets_root }}/runtime/llm.env"
+    compose_services:
+      - llm-postgres
+      - litellm
+      - langfuse
+    directories:
+      - { path: "{{ srv_apps_root }}/llm/litellm", mode: "0755" }
+      - { path: "{{ srv_apps_root }}/llm/llm-postgres/init", mode: "0755" }
+      - { path: "{{ srv_data_root }}/llm/postgres", mode: "0750" }
+    staged_secret_files:
+      - source_file: "{{ lookup('ansible.builtin.env', 'LLM_RUNTIME_ENV_SOURCE_FILE') | default('', true) }}"
+        dest: "{{ srv_secrets_root }}/runtime/llm.env"
+        mode: "0600"
+        recreate_services:
+          - llm-postgres
+          - litellm
+          - langfuse
+    required_files:
+      - "{{ srv_secrets_root }}/runtime/llm.env"
+    config_files:
+      - src: "{{ playbook_dir }}/../../compose/configs/litellm/config.yaml"
+        dest: "{{ srv_apps_root }}/llm/litellm/config.yaml"
+        restart_services:
+          - litellm
+      - src: "{{ playbook_dir }}/../../compose/configs/llm-postgres/init/01-create-llm-databases.sh"
+        dest: "{{ srv_apps_root }}/llm/llm-postgres/init/01-create-llm-databases.sh"
+        mode: "0755"

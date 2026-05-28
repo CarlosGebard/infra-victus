@@ -107,6 +107,34 @@ Outputs:
 - monitoring and logging surfaces for infrastructure operators
 - service health and runtime inspection data
 
+### LLM Stack
+
+The `llm` stack owns LLM gateway key management and LLM observability.
+
+```text
+compose/projects/llm/
+```
+
+Components:
+
+```text
+llm-postgres   durable LiteLLM and Langfuse databases
+litellm        OpenAI-compatible LLM gateway and virtual key manager
+langfuse       LLM tracing, cost, and audit surface
+```
+
+Inputs:
+
+- Compose files and environment files from `compose/projects/llm/`
+- LiteLLM config from `compose/configs/litellm/`
+- runtime secrets staged outside the repository
+
+Outputs:
+
+- LiteLLM proxy API on port `4000`
+- Langfuse UI/API on port `3000`
+- persisted virtual keys, traces, and audit data
+
 ### Deployment Layer
 
 The deployment layer owns host preparation and stack rollout.
@@ -154,6 +182,7 @@ Responsibilities:
 ```text
 core            shared runtime services for consumers
 observability   monitoring and logging services
+llm             LLM gateway, key management, tracing, and cost audit
 ansible         host orchestration and deployment
 ops             validation and runtime support tooling
 docs            repository documentation hubs and nodes

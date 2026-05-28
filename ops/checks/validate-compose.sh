@@ -130,6 +130,7 @@ validate_required_dirs() {
 		"$ROOT_DIR/compose/.tmp/observability/grafana"
 		"$ROOT_DIR/compose/.tmp/observability/loki"
 		"$ROOT_DIR/compose/.tmp/observability/prometheus"
+		"$ROOT_DIR/compose/.tmp/llm/postgres/data"
 	)
 
 	for dir in "${dirs[@]}"; do
@@ -143,6 +144,7 @@ require_cmd python3
 require_cmd timeout
 validate_stack core
 validate_stack observability
+validate_stack llm
 validate_required_dirs
 validate_seaweed_s3_config
 validate_postgres_config

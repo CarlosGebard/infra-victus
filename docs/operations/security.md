@@ -32,6 +32,17 @@ SEAWEED_S3_SECRET_KEY
 POSTGRES_PASSWORD
 REDIS_PASSWORD
 GRAFANA_ADMIN_PASSWORD
+LLM_POSTGRES_PASSWORD
+LITELLM_DB_PASSWORD
+LITELLM_MASTER_KEY
+LITELLM_SALT_KEY
+LITELLM_UI_PASSWORD
+LANGFUSE_DB_PASSWORD
+LANGFUSE_NEXTAUTH_SECRET
+LANGFUSE_SALT
+LANGFUSE_ENCRYPTION_KEY
+LANGFUSE_PUBLIC_KEY
+LANGFUSE_SECRET_KEY
 ```
 
 Optional production secrets:
@@ -49,6 +60,7 @@ Production runtime secret files live under:
 /srv/secrets/runtime/core.env
 /srv/secrets/runtime/seaweed-s3.json
 /srv/secrets/runtime/observability.env
+/srv/secrets/runtime/llm.env
 ```
 
 ## Expected Permissions
@@ -75,4 +87,3 @@ Before pushing infrastructure changes:
 - ensure no `__pycache__` files are staged.
 - ensure no private keys or passwords are staged.
 - ensure workflows do not print secret values.
-

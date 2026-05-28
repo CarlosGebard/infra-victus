@@ -1,0 +1,17 @@
+services:
+  llm-postgres:
+    ports:
+      - "${LLM_POSTGRES_BIND_IP:-127.0.0.1}:${LLM_POSTGRES_PORT:-55432}:5432"
+    volumes:
+      - ../../.tmp/llm/postgres/data:/var/lib/postgresql/data
+      - ../../configs/llm-postgres/init:/docker-entrypoint-initdb.d:ro
+
+  litellm:
+    ports:
+      - "${LITELLM_BIND_IP:-127.0.0.1}:${LITELLM_PORT:-4000}:4000"
+    volumes:
+      - ../../configs/litellm/config.yaml:/app/config.yaml:ro
+
+  langfuse:
+    ports:
+      - "${LANGFUSE_BIND_IP:-127.0.0.1}:${LANGFUSE_PORT:-3000}:3000"

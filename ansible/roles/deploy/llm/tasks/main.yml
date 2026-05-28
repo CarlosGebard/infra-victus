@@ -1,0 +1,144 @@
+---
+- name: Derive llm compose CLI args
+  ansible.builtin.set_fact:
+    deploy_llm_compose_args: >-
+      {{
+        '-f ' ~ (deploy_stack.compose_cli_files | join(' -f '))
+      }}
+
+- name: Ensure llm deploy directories exist
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "{{ item.mode }}"
+  loop: "{{ deploy_stack.directories | default([]) }}"
+
+- name: Stage llm runtime secret files
+  ansible.builtin.copy:
+    src: "{{ item.source_file }}"
+    dest: "{{ item.dest }}"
+    owner: root
+    group: root
+    mode: "{{ item.mode | default('0600') }}"
+  loop: "{{ deploy_stack.staged_secret_files | default([]) }}"
+  when: item.source_file | default('') | length > 0
+  register: deploy_llm_secret_copy
+
+- name: Assert required llm runtime files exist
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop: "{{ deploy_stack.required_files | default([]) }}"
+  register: deploy_llm_required_files
+
+- name: Stop llm deploy when required files missing
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists
+    fail_msg: "Missing required llm file: {{ item.item }}"
+  loop: "{{ deploy_llm_required_files.results }}"
+
+- name: Copy llm static config files
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: root
+    group: root
+    mode: "{{ item.mode | default('0644') }}"
+  loop: "{{ deploy_stack.config_files | default([]) }}"
+  register: deploy_llm_config_copy
+
+- name: Copy llm stack compose files
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop: "{{ deploy_stack.compose_files }}"
+  register: deploy_llm_compose_copy
+
+- name: Link active environment file into the llm stack directory
+  ansible.builtin.file:
+    src: "{{ deploy_stack.env_path }}"
+    dest: "{{ deploy_stack.project_dir }}/.env"
+    state: link
+  register: deploy_llm_env_link
+
+- name: Derive llm runtime actions
+  ansible.builtin.set_fact:
+    deploy_llm_recreate_services: >-
+      {{
+        (
+          (
+            deploy_llm_secret_copy.results | default([])
+            | selectattr('changed')
+            | map(attribute='item.recreate_services')
+            | select('defined')
+            | list
+            | flatten
+          )
+          + (
+            deploy_stack.compose_services | default([])
+            if (
+              deploy_llm_compose_copy.results | default([])
+              | selectattr('changed')
+              | list
+              | length
+            ) > 0 or deploy_llm_env_link.changed
+            else []
+          )
+        ) | unique
+      }}
+
+- name: Derive llm config-only restarts
+  ansible.builtin.set_fact:
+    deploy_llm_restart_services: >-
+      {{
+        (
+          deploy_llm_config_copy.results | default([])
+          | selectattr('changed')
+          | map(attribute='item.restart_services')
+          | select('defined')
+          | list
+          | flatten
+        ) | difference(deploy_llm_recreate_services | default([]))
+      }}
+
+- name: Validate rendered llm Compose configuration
+  ansible.builtin.command:
+    cmd: docker compose --env-file {{ deploy_stack.env_path }} {{ deploy_llm_compose_args }} config
+  changed_when: false
+
+- name: Deploy the llm stack
+  ansible.builtin.command:
+    cmd: docker compose --env-file {{ deploy_stack.env_path }} {{ deploy_llm_compose_args }} up -d
+  register: deploy_llm_up
+  changed_when: >-
+    'Started' in deploy_llm_up.stdout or
+    'Recreated' in deploy_llm_up.stdout or
+    'Creating' in deploy_llm_up.stdout
+
+- name: Force recreate llm services with runtime definition changes
+  ansible.builtin.command:
+    cmd: >-
+      docker compose --env-file {{ deploy_stack.env_path }}
+      {{ deploy_llm_compose_args }}
+      up -d --force-recreate {{ deploy_llm_recreate_services | join(' ') }}
+  when: deploy_llm_recreate_services | length > 0
+  register: deploy_llm_force_recreate
+  changed_when: >-
+    'Started' in deploy_llm_force_recreate.stdout or
+    'Recreated' in deploy_llm_force_recreate.stdout or
+    'Creating' in deploy_llm_force_recreate.stdout
+
+- name: Restart llm services with config-only changes
+  ansible.builtin.command:
+    cmd: >-
+      docker compose --env-file {{ deploy_stack.env_path }}
+      {{ deploy_llm_compose_args }}
+      restart {{ deploy_llm_restart_services | join(' ') }}
+  when: deploy_llm_restart_services | length > 0
+  register: deploy_llm_restart
+  changed_when: deploy_llm_restart_services | length > 0

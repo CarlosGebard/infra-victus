@@ -1,0 +1,89 @@
+services:
+  llm-postgres:
+    image: postgres:17-alpine
+    container_name: llm-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${LLM_POSTGRES_DB:-postgres}
+      POSTGRES_USER: ${LLM_POSTGRES_USER:-llm_admin}
+      POSTGRES_PASSWORD: ${LLM_POSTGRES_PASSWORD}
+      LITELLM_DB: ${LITELLM_DB:-litellm}
+      LITELLM_DB_USER: ${LITELLM_DB_USER:-litellm}
+      LITELLM_DB_PASSWORD: ${LITELLM_DB_PASSWORD}
+      LANGFUSE_DB: ${LANGFUSE_DB:-langfuse}
+      LANGFUSE_DB_USER: ${LANGFUSE_DB_USER:-langfuse}
+      LANGFUSE_DB_PASSWORD: ${LANGFUSE_DB_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - llm_backend
+
+  litellm:
+    image: ghcr.io/berriai/litellm:main-latest
+    container_name: litellm
+    restart: unless-stopped
+    command:
+      - --config
+      - /app/config.yaml
+      - --port
+      - "4000"
+      - --num_workers
+      - "${LITELLM_WORKERS:-2}"
+    environment:
+      DATABASE_URL: postgresql://${LITELLM_DB_USER:-litellm}:${LITELLM_DB_PASSWORD}@llm-postgres:5432/${LITELLM_DB:-litellm}
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
+      LITELLM_SALT_KEY: ${LITELLM_SALT_KEY}
+      UI_USERNAME: ${LITELLM_UI_USERNAME:-admin}
+      UI_PASSWORD: ${LITELLM_UI_PASSWORD}
+      LANGFUSE_HOST: ${LANGFUSE_HOST:-http://langfuse:3000}
+      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY}
+      LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY}
+    depends_on:
+      llm-postgres:
+        condition: service_healthy
+      langfuse:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:4000/health/readiness', timeout=5)\""]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    networks:
+      - llm_backend
+      - shared_backend
+
+  langfuse:
+    image: langfuse/langfuse:2
+    container_name: langfuse
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${LANGFUSE_DB_USER:-langfuse}:${LANGFUSE_DB_PASSWORD}@llm-postgres:5432/${LANGFUSE_DB:-langfuse}
+      NEXTAUTH_URL: ${LANGFUSE_NEXTAUTH_URL:-http://localhost:3000}
+      NEXTAUTH_SECRET: ${LANGFUSE_NEXTAUTH_SECRET}
+      SALT: ${LANGFUSE_SALT}
+      ENCRYPTION_KEY: ${LANGFUSE_ENCRYPTION_KEY}
+      TELEMETRY_ENABLED: ${LANGFUSE_TELEMETRY_ENABLED:-false}
+    depends_on:
+      llm-postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:3000/api/public/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - llm_backend
+      - shared_backend
+
+networks:
+  llm_backend:
+    driver: bridge
+  shared_backend:
+    name: infra_shared_backend
+    external: true

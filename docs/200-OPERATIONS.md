@@ -37,6 +37,7 @@ Operational responsibilities include:
 - validating Compose and Ansible definitions before changes are merged.
 - starting and inspecting local infrastructure stacks.
 - deploying `observability` and `core` to the VPS.
+- deploying `llm` when LiteLLM and Langfuse services are used.
 - keeping runtime secrets outside git.
 - recovering from common service, storage, and event failures.
 
@@ -94,6 +95,9 @@ loki         log storage and querying
 Operators should inspect deployment logs in GitHub Actions and service logs
 through Docker Compose when validating runtime behavior.
 
+The `llm` stack provides LiteLLM key management and Langfuse LLM tracing.
+LiteLLM listens on `4000`; Langfuse listens on `3000`; Postgres is internal.
+
 ## Failure And Recovery
 
 Operational recovery should prefer idempotent workflows:
@@ -132,4 +136,3 @@ This hub does not own:
   flow.
 - [300-CONTRACTS.md](300-CONTRACTS.md) -> stable interfaces and invariants.
 - [decisions/](decisions/) -> decision records.
-
