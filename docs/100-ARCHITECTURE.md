@@ -132,7 +132,7 @@ Inputs:
 Outputs:
 
 - LiteLLM proxy API on port `4000`
-- Langfuse UI/API on port `3000`
+- Langfuse UI/API on host port `3001` and container port `3000`
 - persisted virtual keys, traces, and audit data
 
 ### Deployment Layer

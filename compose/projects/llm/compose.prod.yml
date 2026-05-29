@@ -12,4 +12,4 @@ services:
 
   langfuse:
     ports:
-      - "${LANGFUSE_BIND_IP:-127.0.0.1}:${LANGFUSE_PORT:-3000}:3000"
+      - "${LANGFUSE_BIND_IP:-127.0.0.1}:${LANGFUSE_PORT:-3001}:3000"

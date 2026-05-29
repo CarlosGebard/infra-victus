@@ -96,7 +96,7 @@ Operators should inspect deployment logs in GitHub Actions and service logs
 through Docker Compose when validating runtime behavior.
 
 The `llm` stack provides LiteLLM key management and Langfuse LLM tracing.
-LiteLLM listens on `4000`; Langfuse listens on `3000`; Postgres is internal.
+LiteLLM listens on `4000`; Langfuse listens on host port `3001`; Postgres is internal.
 
 ## Failure And Recovery
 
