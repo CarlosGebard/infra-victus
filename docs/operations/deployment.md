@@ -25,17 +25,18 @@ Production deploys use:
 Deployment order:
 
 ```text
-validate -> deploy-observability -> deploy-core -> verify
+validate -> preflight -> deploy-observability -> deploy-core -> deploy-llm -> verify
 ```
 
 Stack dependency:
 
 ```text
-observability -> core
+observability -> core -> llm
 ```
 
 The `observability` stack is deployed first so monitoring is available before
-the core stack is rolled out.
+the core stack is rolled out. The `llm` stack is deployed after core so the
+shared Docker network is already present.
 
 ## Triggers
 
@@ -63,6 +64,11 @@ Production secrets come from Infisical through GitHub OIDC. Secrets are not
 stored in git or GitHub repository secrets.
 
 Required secrets are listed in [security.md](security.md).
+
+The workflow pulls secrets from Infisical into GitHub Actions environment
+variables, materializes stack-specific runtime env files under `/tmp`, then
+passes those file paths to Ansible. Ansible copies them into
+`/srv/secrets/runtime/` with `0600` permissions.
 
 ## Validation
 
@@ -100,7 +106,25 @@ seaweedfs
 loki
 prometheus
 grafana
+llm-postgres
+litellm
+langfuse
 ```
+
+LLM service endpoints on the host:
+
+```text
+LiteLLM    <TAILSCALE_IPV4>:4000
+Langfuse   <TAILSCALE_IPV4>:3001
+Postgres   internal Docker network only
+```
+
+The `llm` deploy binds LiteLLM and Langfuse to `TAILSCALE_IPV4` and opens
+ports `4000` and `3001` only on the configured Tailscale interface.
+
+After the first Langfuse login, create a Langfuse project, generate API keys,
+update `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` in Infisical, and
+rerun the deployment.
 
 Manual inspection:
 
@@ -122,4 +146,3 @@ Prefer redeploying a known-good git ref through the deployment workflow.
 Manual rollback on the host should be treated as an emergency operation and
 followed by a repository-backed deployment to restore source-of-truth
 alignment.
-

@@ -15,6 +15,16 @@
     mode: "{{ item.mode }}"
   loop: "{{ deploy_stack.directories | default([]) }}"
 
+- name: Allow LLM HTTP services through Tailscale only
+  ansible.builtin.command: "ufw allow in on {{ networking.private_dns.tailscale_interface }} to any port {{ item }} proto tcp"
+  loop:
+    - 3001
+    - 4000
+  register: deploy_llm_ufw_allow_private_tcp
+  changed_when: >-
+    'Rule added' in deploy_llm_ufw_allow_private_tcp.stdout or
+    'Rules updated' in deploy_llm_ufw_allow_private_tcp.stdout
+
 - name: Stage llm runtime secret files
   ansible.builtin.copy:
     src: "{{ item.source_file }}"

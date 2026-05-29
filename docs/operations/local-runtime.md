@@ -29,6 +29,7 @@ Committed examples:
 ```text
 compose/env/core.env.example
 compose/env/observability.env.example
+compose/env/llm.env.example
 ```
 
 Local runtime env files:
@@ -36,6 +37,7 @@ Local runtime env files:
 ```text
 compose/projects/core/.env
 compose/projects/observability/.env
+compose/projects/llm/.env
 ```
 
 Local `.env` files are not committed.
@@ -84,6 +86,32 @@ make core-logs
 make core-down
 ```
 
+## Run LLM Stack
+
+Create the shared Docker network, then start the stack:
+
+```bash
+./ops/scripts/local/ensure-shared-network.sh
+docker compose \
+  --env-file compose/projects/llm/.env \
+  -f compose/projects/llm/compose.yml \
+  -f compose/projects/llm/compose.dev.yml \
+  up -d
+```
+
+Local endpoints:
+
+```text
+LiteLLM    http://127.0.0.1:4000
+Langfuse   http://127.0.0.1:3001
+Postgres   127.0.0.1:55432
+```
+
+Production binds LiteLLM and Langfuse to `TAILSCALE_IPV4`, not localhost.
+
+Provider API keys are added through the LiteLLM UI and persisted in the
+LiteLLM Postgres database. They should not be committed to git.
+
 ## Bridge Smoke Check
 
 ```bash
@@ -110,4 +138,3 @@ VICTUS_PG_DSN=postgresql://victus:<password>@postgres.victus.io:5432/victus_regi
 VICTUS_REDIS_URL=redis://:<password>@redis.victus.io:6379/0
 VICTUS_S3_ENDPOINT=http://s3.victus.io
 ```
-

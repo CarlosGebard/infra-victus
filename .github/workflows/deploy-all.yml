@@ -83,6 +83,7 @@ jobs:
           SEAWEED_S3_SECRET_KEY: ${{ env.SEAWEED_S3_SECRET_KEY }}
           POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
           REDIS_PASSWORD: ${{ env.REDIS_PASSWORD }}
+          TAILSCALE_IPV4: ${{ env.TAILSCALE_IPV4 }}
           LLM_POSTGRES_PASSWORD: ${{ env.LLM_POSTGRES_PASSWORD }}
           LITELLM_DB_PASSWORD: ${{ env.LITELLM_DB_PASSWORD }}
           LITELLM_MASTER_KEY: ${{ env.LITELLM_MASTER_KEY }}
@@ -112,6 +113,7 @@ jobs:
           [[ -n "${REDIS_PASSWORD}" ]] || errors+=("Missing REDIS_PASSWORD")
           [[ "${#REDIS_PASSWORD}" -ge 16 ]] || errors+=("REDIS_PASSWORD must be at least 16 characters")
           [[ "${REDIS_PASSWORD}" != "change-me" ]] || errors+=("REDIS_PASSWORD must not use local default")
+          [[ -n "${TAILSCALE_IPV4}" ]] || errors+=("Missing TAILSCALE_IPV4")
           
           # Observability secrets
           [[ -n "${GRAFANA_ADMIN_PASSWORD}" ]] || errors+=("Missing GRAFANA_ADMIN_PASSWORD")
@@ -452,6 +454,7 @@ jobs:
           LANGFUSE_ENCRYPTION_KEY: ${{ env.LANGFUSE_ENCRYPTION_KEY }}
           LANGFUSE_PUBLIC_KEY: ${{ env.LANGFUSE_PUBLIC_KEY }}
           LANGFUSE_SECRET_KEY: ${{ env.LANGFUSE_SECRET_KEY }}
+          TAILSCALE_IPV4: ${{ env.TAILSCALE_IPV4 }}
         run: |
           set -euo pipefail
 
@@ -466,18 +469,18 @@ jobs:
             "LITELLM_SALT_KEY=${LITELLM_SALT_KEY}" \
             'LITELLM_UI_USERNAME=admin' \
             "LITELLM_UI_PASSWORD=${LITELLM_UI_PASSWORD}" \
-            'LITELLM_BIND_IP=127.0.0.1' \
+            "LITELLM_BIND_IP=${TAILSCALE_IPV4}" \
             'LITELLM_PORT=4000' \
             'LITELLM_WORKERS=2' \
             'LANGFUSE_DB=langfuse' \
             'LANGFUSE_DB_USER=langfuse' \
             "LANGFUSE_DB_PASSWORD=${LANGFUSE_DB_PASSWORD}" \
-            'LANGFUSE_NEXTAUTH_URL=http://127.0.0.1:3001' \
+            "LANGFUSE_NEXTAUTH_URL=http://${TAILSCALE_IPV4}:3001" \
             "LANGFUSE_NEXTAUTH_SECRET=${LANGFUSE_NEXTAUTH_SECRET}" \
             "LANGFUSE_SALT=${LANGFUSE_SALT}" \
             "LANGFUSE_ENCRYPTION_KEY=${LANGFUSE_ENCRYPTION_KEY}" \
             'LANGFUSE_TELEMETRY_ENABLED=false' \
-            'LANGFUSE_BIND_IP=127.0.0.1' \
+            "LANGFUSE_BIND_IP=${TAILSCALE_IPV4}" \
             'LANGFUSE_PORT=3001' \
             'LANGFUSE_HOST=http://langfuse:3000' \
             "LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}" \
