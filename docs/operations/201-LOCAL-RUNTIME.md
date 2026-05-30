@@ -88,15 +88,10 @@ make core-down
 
 ## Run LLM Stack
 
-Create the shared Docker network, then start the stack:
+Start the stack:
 
 ```bash
-./ops/scripts/local/ensure-shared-network.sh
-docker compose \
-  --env-file compose/projects/llm/.env \
-  -f compose/projects/llm/compose.yml \
-  -f compose/projects/llm/compose.dev.yml \
-  up -d
+make llm-up
 ```
 
 Local endpoints:
@@ -112,8 +107,15 @@ Production binds LiteLLM and Langfuse to `TAILSCALE_IPV4`, not localhost.
 Private DNS endpoints:
 
 ```text
-LiteLLM    http://litellm.victus.io:4000
-Langfuse   http://langfuse.victus.io:3001
+LiteLLM    http://litellm.victus.io
+Langfuse   http://langfuse.victus.io
+```
+
+Local NGINX aliases:
+
+```text
+LiteLLM    http://litellm.localhost:8080
+Langfuse   http://langfuse.localhost:8080
 ```
 
 Provider API keys are added through the LiteLLM UI and persisted in the
