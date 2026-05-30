@@ -21,6 +21,8 @@ DNS_ZONE="${DNS_ZONE:-victus.io}"
 S3_DOMAIN="${S3_DOMAIN:-s3.$DNS_ZONE}"
 POSTGRES_DOMAIN="${POSTGRES_DOMAIN:-postgres.$DNS_ZONE}"
 REDIS_DOMAIN="${REDIS_DOMAIN:-redis.$DNS_ZONE}"
+LITELLM_DOMAIN="${LITELLM_DOMAIN:-litellm.$DNS_ZONE}"
+LANGFUSE_DOMAIN="${LANGFUSE_DOMAIN:-langfuse.$DNS_ZONE}"
 ETCD_PREFIX="${ETCD_PREFIX:-/skydns}"
 DNS_TTL="${DNS_TTL:-30}"
 ETCD_SERVICE_NAME="${ETCD_SERVICE_NAME:-etcd}"
@@ -134,7 +136,7 @@ write_managed_env_block() {
     BEGIN { skip=0 }
     /^# BEGIN managed: core-private-dns$/ { skip=1; next }
     /^# END managed: core-private-dns$/ { skip=0; next }
-    $1 ~ /^(TAILSCALE_INTERFACE|TAILSCALE_IPV4|DNS_ZONE|ETCD_PREFIX|DNS_TTL|COREDNS_BIND_IP|COREDNS_DNS_PORT|S3_DOMAIN|POSTGRES_DOMAIN|POSTGRES_BIND_IP|POSTGRES_PORT|REDIS_DOMAIN|REDIS_BIND_IP|REDIS_PORT)=/ { next }
+    $1 ~ /^(TAILSCALE_INTERFACE|TAILSCALE_IPV4|DNS_ZONE|ETCD_PREFIX|DNS_TTL|COREDNS_BIND_IP|COREDNS_DNS_PORT|S3_DOMAIN|POSTGRES_DOMAIN|POSTGRES_BIND_IP|POSTGRES_PORT|REDIS_DOMAIN|REDIS_BIND_IP|REDIS_PORT|LITELLM_DOMAIN|LANGFUSE_DOMAIN)=/ { next }
     skip == 0 { print }
   ' "$target" > "$tmp_file"
 
@@ -158,6 +160,8 @@ POSTGRES_PORT=${POSTGRES_PORT:-5432}
 REDIS_DOMAIN=$REDIS_DOMAIN
 REDIS_BIND_IP=${REDIS_BIND_IP:-$TAILSCALE_IP}
 REDIS_PORT=${REDIS_PORT:-6379}
+LITELLM_DOMAIN=$LITELLM_DOMAIN
+LANGFUSE_DOMAIN=$LANGFUSE_DOMAIN
 # END managed: core-private-dns
 EOF
 
@@ -186,12 +190,16 @@ write_managed_env_block "$ENV_FILE"
 STORAGE_KEY="$(skydns_key_for_name "$S3_DOMAIN")"
 POSTGRES_KEY="$(skydns_key_for_name "$POSTGRES_DOMAIN")"
 REDIS_KEY="$(skydns_key_for_name "$REDIS_DOMAIN")"
+LITELLM_KEY="$(skydns_key_for_name "$LITELLM_DOMAIN")"
+LANGFUSE_KEY="$(skydns_key_for_name "$LANGFUSE_DOMAIN")"
 
 # TTL low on purpose. Tailscale IP can change on node/network events; 30s keeps
 # client-side cache short without creating extreme DNS churn.
 STORAGE_VALUE="$(printf '{"host":"%s","ttl":%s}' "$(json_escape "$TAILSCALE_IP")" "$(json_escape "$DNS_TTL")")"
 POSTGRES_VALUE="$STORAGE_VALUE"
 REDIS_VALUE="$STORAGE_VALUE"
+LITELLM_VALUE="$STORAGE_VALUE"
+LANGFUSE_VALUE="$STORAGE_VALUE"
 
 log "Detected Tailscale IPv4: $TAILSCALE_IP"
 log "Updated runtime env file: $ENV_FILE"
@@ -204,9 +212,13 @@ log "Syncing SkyDNS records under $ETCD_PREFIX for zone $DNS_ZONE"
 etcd_put "$STORAGE_KEY" "$STORAGE_VALUE"
 etcd_put "$POSTGRES_KEY" "$POSTGRES_VALUE"
 etcd_put "$REDIS_KEY" "$REDIS_VALUE"
+etcd_put "$LITELLM_KEY" "$LITELLM_VALUE"
+etcd_put "$LANGFUSE_KEY" "$LANGFUSE_VALUE"
 
 log "Updated records:"
 log "  $S3_DOMAIN -> $TAILSCALE_IP"
 log "  *.$S3_DOMAIN -> $TAILSCALE_IP (CoreDNS template)"
 log "  $POSTGRES_DOMAIN -> $TAILSCALE_IP"
 log "  $REDIS_DOMAIN -> $TAILSCALE_IP"
+log "  $LITELLM_DOMAIN -> $TAILSCALE_IP"
+log "  $LANGFUSE_DOMAIN -> $TAILSCALE_IP"

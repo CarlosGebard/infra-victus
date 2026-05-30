@@ -332,6 +332,8 @@ s3.victus.io
 *.s3.victus.io
 postgres.victus.io
 redis.victus.io
+litellm.victus.io
+langfuse.victus.io
 ```
 
 ### Guarantees
