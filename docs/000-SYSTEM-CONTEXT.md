@@ -66,7 +66,9 @@ This repository is moving toward a Hub-and-Node documentation model:
 ```text
 docs/000-SYSTEM-CONTEXT.md    repository purpose, scope, concepts, navigation
 docs/100-ARCHITECTURE.md      system shape, components, runtime boundaries
+docs/architecture/            modular architecture nodes
 docs/200-OPERATIONS.md        validation, deploy, maintenance, troubleshooting
+docs/operations/              numbered operational runbooks
 docs/300-CONTRACTS.md         shared guarantees, interfaces, schemas, invariants
 docs/decisions/               decision records and architectural rationale
 ```
@@ -77,15 +79,23 @@ Current documentation nodes:
 - [100-ARCHITECTURE.md](100-ARCHITECTURE.md) -> current architecture hub.
 - [200-OPERATIONS.md](200-OPERATIONS.md) -> current operations hub.
 - [300-CONTRACTS.md](300-CONTRACTS.md) -> current contracts hub.
-- [operations/local-runtime.md](operations/local-runtime.md) -> local
+- [architecture/101-NETWORKING.md](architecture/101-NETWORKING.md) ->
+  networking, Tailscale, Docker networks, and DNS.
+- [architecture/102-COMPUTE-RUNTIMES.md](architecture/102-COMPUTE-RUNTIMES.md) ->
+  Compose, Ansible, and runtime stack sequencing.
+- [architecture/103-DATA-STORAGE.md](architecture/103-DATA-STORAGE.md) ->
+  durable storage, databases, and host data paths.
+- [architecture/104-OBSERVABILITY.md](architecture/104-OBSERVABILITY.md) ->
+  infrastructure and LLM observability surfaces.
+- [operations/201-LOCAL-RUNTIME.md](operations/201-LOCAL-RUNTIME.md) -> local
   runtime usage.
-- [operations/deployment.md](operations/deployment.md) -> deployment
+- [operations/202-DEPLOYMENT.md](operations/202-DEPLOYMENT.md) -> deployment
   workflow.
-- [operations/security.md](operations/security.md) -> secrets and safety
+- [operations/203-SECURITY.md](operations/203-SECURITY.md) -> secrets and safety
   checks.
-- [operations/troubleshooting.md](operations/troubleshooting.md) -> common
+- [operations/204-TROUBLESHOOTING.md](operations/204-TROUBLESHOOTING.md) -> common
   recovery procedures.
-- [operations/roadmap.md](operations/roadmap.md) -> operational roadmap.
+- [operations/205-ROADMAP.md](operations/205-ROADMAP.md) -> operational roadmap.
 
 ## Core Concepts
 
@@ -95,7 +105,7 @@ copies and starts them; it should not redefine the stack.
 
 `stack`
 : A deployable service group with a clear domain boundary. Current stacks are
-`core` and `observability`.
+`core`, `observability`, and `llm`.
 
 `core`
 : Shared infrastructure required by Victus consumers, including private edge
@@ -104,6 +114,9 @@ DNS.
 
 `observability`
 : Monitoring and logging services used to inspect runtime health.
+
+`llm`
+: LiteLLM gateway, dynamic provider key management, and Langfuse LLM tracing.
 
 `private DNS`
 : Internal service naming under the `victus.io` zone, backed by CoreDNS.

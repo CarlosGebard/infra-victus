@@ -9,6 +9,10 @@ related_docs:
   - 000-SYSTEM-CONTEXT.md
   - 200-OPERATIONS.md
   - 300-CONTRACTS.md
+  - architecture/101-NETWORKING.md
+  - architecture/102-COMPUTE-RUNTIMES.md
+  - architecture/103-DATA-STORAGE.md
+  - architecture/104-OBSERVABILITY.md
   - decisions/
 tags:
   - infrastructure
@@ -38,6 +42,17 @@ same Compose-defined stacks on the server.
 
 The architecture separates infrastructure by domain so each stack can be
 reasoned about and deployed independently.
+
+## Architecture Nodes
+
+Detailed architecture is split into focused modules:
+
+```text
+architecture/101-NETWORKING.md        Tailscale, Docker networks, CoreDNS
+architecture/102-COMPUTE-RUNTIMES.md  Docker Compose, Ansible, stack runtime
+architecture/103-DATA-STORAGE.md      SeaweedFS, Postgres, Redis, volumes
+architecture/104-OBSERVABILITY.md     Grafana, Prometheus, Loki, Langfuse
+```
 
 ## Major Components
 

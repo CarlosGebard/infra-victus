@@ -1,10 +1,6 @@
 compose/.tmp/
 compose/projects/*/.env
 .codex
-AGENTS.md
-TASKS.MD
-TASKS.md
-tasks.md
 .env
 __pycache__/
 *.py[cod]

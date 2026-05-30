@@ -109,6 +109,13 @@ Postgres   127.0.0.1:55432
 
 Production binds LiteLLM and Langfuse to `TAILSCALE_IPV4`, not localhost.
 
+Private DNS endpoints:
+
+```text
+LiteLLM    http://litellm.victus.io:4000
+Langfuse   http://langfuse.victus.io:3001
+```
+
 Provider API keys are added through the LiteLLM UI and persisted in the
 LiteLLM Postgres database. They should not be committed to git.
 

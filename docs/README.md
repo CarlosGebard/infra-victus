@@ -9,13 +9,20 @@ This directory uses a Hub-and-Node documentation model.
 3. [200-OPERATIONS.md](200-OPERATIONS.md)
 4. [300-CONTRACTS.md](300-CONTRACTS.md)
 
+## Architecture Nodes
+
+- [architecture/101-NETWORKING.md](architecture/101-NETWORKING.md)
+- [architecture/102-COMPUTE-RUNTIMES.md](architecture/102-COMPUTE-RUNTIMES.md)
+- [architecture/103-DATA-STORAGE.md](architecture/103-DATA-STORAGE.md)
+- [architecture/104-OBSERVABILITY.md](architecture/104-OBSERVABILITY.md)
+
 ## Operational Nodes
 
-- [operations/local-runtime.md](operations/local-runtime.md)
-- [operations/deployment.md](operations/deployment.md)
-- [operations/security.md](operations/security.md)
-- [operations/troubleshooting.md](operations/troubleshooting.md)
-- [operations/roadmap.md](operations/roadmap.md)
+- [operations/201-LOCAL-RUNTIME.md](operations/201-LOCAL-RUNTIME.md)
+- [operations/202-DEPLOYMENT.md](operations/202-DEPLOYMENT.md)
+- [operations/203-SECURITY.md](operations/203-SECURITY.md)
+- [operations/204-TROUBLESHOOTING.md](operations/204-TROUBLESHOOTING.md)
+- [operations/205-ROADMAP.md](operations/205-ROADMAP.md)
 
 ## Decisions
 

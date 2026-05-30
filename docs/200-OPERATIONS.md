@@ -14,10 +14,10 @@ related_docs:
   - 000-SYSTEM-CONTEXT.md
   - 100-ARCHITECTURE.md
   - 300-CONTRACTS.md
-  - operations/local-runtime.md
-  - operations/deployment.md
-  - operations/security.md
-  - operations/troubleshooting.md
+  - operations/201-LOCAL-RUNTIME.md
+  - operations/202-DEPLOYMENT.md
+  - operations/203-SECURITY.md
+  - operations/204-TROUBLESHOOTING.md
 tags:
   - operations
   - deployment
@@ -59,13 +59,13 @@ Important differences:
 
 Primary operational workflows live in focused runbooks:
 
-- [operations/local-runtime.md](operations/local-runtime.md) -> local
+- [operations/201-LOCAL-RUNTIME.md](operations/201-LOCAL-RUNTIME.md) -> local
   validation, startup, logs, and shutdown.
-- [operations/deployment.md](operations/deployment.md) -> production
+- [operations/202-DEPLOYMENT.md](operations/202-DEPLOYMENT.md) -> production
   deployment through GitHub Actions and Ansible.
-- [operations/security.md](operations/security.md) -> secrets, permissions,
+- [operations/203-SECURITY.md](operations/203-SECURITY.md) -> secrets, permissions,
   and pre-push safety checks.
-- [operations/troubleshooting.md](operations/troubleshooting.md) -> common
+- [operations/204-TROUBLESHOOTING.md](operations/204-TROUBLESHOOTING.md) -> common
   runtime failures and recovery guidance.
 
 ## Configuration
@@ -80,7 +80,7 @@ Infisical                           production secret source
 ```
 
 Required production secrets are documented in
-[operations/security.md](operations/security.md).
+[operations/203-SECURITY.md](operations/203-SECURITY.md).
 
 ## Observability
 
@@ -109,7 +109,7 @@ Operational recovery should prefer idempotent workflows:
 - avoid deleting production data unless a runbook explicitly allows it.
 
 Common recovery procedures live in
-[operations/troubleshooting.md](operations/troubleshooting.md).
+[operations/204-TROUBLESHOOTING.md](operations/204-TROUBLESHOOTING.md).
 
 ## Operational Boundaries
 
