@@ -102,7 +102,8 @@ Langfuse   http://127.0.0.1:3001
 Postgres   127.0.0.1:55432
 ```
 
-Production binds LiteLLM and Langfuse to `TAILSCALE_IPV4`, not localhost.
+Production does not publish LiteLLM or Langfuse ports directly. Access goes
+through private NGINX on the Tailscale IP.
 
 Private DNS endpoints:
 
@@ -116,6 +117,18 @@ Local NGINX aliases:
 ```text
 LiteLLM    http://litellm.localhost:8080
 Langfuse   http://langfuse.localhost:8080
+```
+
+When using the NGINX aliases, set:
+
+```text
+LANGFUSE_NEXTAUTH_URL=http://langfuse.localhost:8080
+```
+
+Production must use the private NGINX URL:
+
+```text
+LANGFUSE_NEXTAUTH_URL=http://langfuse.victus.io
 ```
 
 Provider API keys are added through the LiteLLM UI and persisted in the

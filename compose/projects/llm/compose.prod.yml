@@ -5,11 +5,7 @@ services:
       - /srv/apps/llm/llm-postgres/init:/docker-entrypoint-initdb.d:ro
 
   litellm:
-    ports:
-      - "${LITELLM_BIND_IP:-127.0.0.1}:${LITELLM_PORT:-4000}:4000"
     volumes:
       - /srv/apps/llm/litellm/config.yaml:/app/config.yaml:ro
 
   langfuse:
-    ports:
-      - "${LANGFUSE_BIND_IP:-127.0.0.1}:${LANGFUSE_PORT:-3001}:3000"

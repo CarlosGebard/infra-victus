@@ -16,16 +16,18 @@ Ansible, and Docker Compose.
 
 ## Primary Workflow
 
-Production deploys use:
+Fast-track production deploys use one workflow per Compose project:
+
+```text
+.github/workflows/deploy-core.yml
+.github/workflows/deploy-observability.yml
+.github/workflows/deploy-llm.yml
+```
+
+The full sequential workflow remains available for coordinated recovery:
 
 ```text
 .github/workflows/deploy-all.yml
-```
-
-Deployment order:
-
-```text
-validate -> preflight -> deploy-observability -> deploy-core -> deploy-llm -> verify
 ```
 
 Stack dependency:
@@ -49,7 +51,7 @@ push to main touching infrastructure paths
 Manual:
 
 ```text
-GitHub Actions -> Deploy All Stacks -> Run workflow
+GitHub Actions -> Deploy <stack> Fast Track -> Run workflow
 ```
 
 Manual input:
@@ -111,16 +113,17 @@ litellm
 langfuse
 ```
 
-LLM service endpoints on the host:
+LLM service endpoints:
 
 ```text
-LiteLLM    <TAILSCALE_IPV4>:4000
-Langfuse   <TAILSCALE_IPV4>:3001
+LiteLLM    http://litellm.victus.io
+Langfuse   http://langfuse.victus.io
 Postgres   internal Docker network only
 ```
 
-The `llm` deploy binds LiteLLM and Langfuse to `TAILSCALE_IPV4` and opens
-ports `4000` and `3001` only on the configured Tailscale interface.
+The `llm` deploy does not publish LiteLLM or Langfuse service ports directly.
+Private NGINX binds to `TAILSCALE_IPV4` and proxies to the services over
+`infra_shared_backend`.
 
 After the first Langfuse login, create a Langfuse project, generate API keys,
 update `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` in Infisical, and

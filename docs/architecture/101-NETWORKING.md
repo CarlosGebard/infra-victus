@@ -44,14 +44,16 @@ This shared network is external and must exist before stack startup.
 
 Production private access is through Tailscale.
 
-LLM HTTP services bind to `TAILSCALE_IPV4`:
+LLM HTTP services are reached through private NGINX:
 
 ```text
-LiteLLM    <TAILSCALE_IPV4>:4000
-Langfuse   <TAILSCALE_IPV4>:3001
+LiteLLM    http://litellm.victus.io
+Langfuse   http://langfuse.victus.io
 ```
 
-Ansible opens these ports only on the configured Tailscale interface.
+Production does not publish LiteLLM or Langfuse service ports directly. NGINX
+binds to the configured Tailscale IP and proxies to the services over
+`infra_shared_backend`.
 
 ## DNS
 

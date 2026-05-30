@@ -21,6 +21,8 @@ files, and pre-push checks.
 - GitHub repository variables are only for non-sensitive values.
 - Docker socket access is high privilege.
 - Internal services should not publish unnecessary ports.
+- LiteLLM and Langfuse are not published directly in production; access goes
+  through private NGINX on the Tailscale interface.
 
 ## Required Production Secrets
 

@@ -1,0 +1,131 @@
+name: Deploy Core Fast Track
+
+on:
+  workflow_dispatch:
+    inputs:
+      git_ref:
+        description: Git ref to deploy
+        required: true
+        default: main
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/deploy-core.yml"
+      - ".github/actions/**"
+      - ".github/scripts/**"
+      - "ansible/**"
+      - "compose/projects/core/**"
+      - "compose/configs/coredns/**"
+      - "compose/configs/nginx/**"
+      - "compose/configs/seaweedfs/**"
+      - "ops/db/**"
+      - "ops/scripts/runtime/**"
+
+concurrency:
+  group: production-deploy-core
+  cancel-in-progress: false
+
+env:
+  DEPLOY_GIT_REF: ${{ inputs.git_ref || github.sha }}
+
+jobs:
+  deploy-core:
+    name: Deploy core
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.DEPLOY_GIT_REF }}
+
+      - name: Pull secrets from Infisical
+        uses: Infisical/secrets-action@v1.0.10
+        with:
+          method: "oidc"
+          identity-id: "${{ vars.INFISICAL_IDENTITY_ID }}"
+          project-slug: "${{ vars.INFISICAL_PROJECT_SLUG }}"
+          env-slug: "${{ vars.INFISICAL_ENV_SLUG }}"
+          secret-path: "${{ vars.INFISICAL_SECRET_PATH }}"
+
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TAILSCALE_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TAILSCALE_OAUTH_SECRET }}
+          tags: tag:ci
+          ping: ${{ env.PROD_HOST }}
+        env:
+          TAILSCALE_TAILNET: ${{ secrets.TAILSCALE_TAILNET }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Ansible
+        run: python -m pip install --upgrade pip ansible-core
+
+      - name: Prepare deploy context
+        uses: ./.github/actions/prepare-deploy-context
+        env:
+          PROD_HOST: ${{ env.PROD_HOST }}
+          PROD_SSH_KNOWN_HOSTS: ${{ env.PROD_SSH_KNOWN_HOSTS }}
+          PROD_SSH_PORT: ${{ env.PROD_SSH_PORT }}
+          PROD_SSH_PRIVATE_KEY: ${{ env.PROD_SSH_PRIVATE_KEY }}
+
+      - name: Materialize core runtime env
+        env:
+          CORE_RUNTIME_ENV: ${{ vars.CORE_RUNTIME_ENV }}
+          SEAWEED_S3_ACCESS_KEY: ${{ env.SEAWEED_S3_ACCESS_KEY }}
+          SEAWEED_S3_SECRET_KEY: ${{ env.SEAWEED_S3_SECRET_KEY }}
+          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+          REDIS_PASSWORD: ${{ env.REDIS_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          if [[ -n "${CORE_RUNTIME_ENV:-}" ]]; then
+            printf '%s\n' "$CORE_RUNTIME_ENV" > /tmp/core-runtime.env
+          else
+            printf '%s\n' 'NGINX_HTTP_PORT=80' > /tmp/core-runtime.env
+          fi
+
+          grep -Ev '^(POSTGRES_PASSWORD|REDIS_PASSWORD)=' /tmp/core-runtime.env > /tmp/core-runtime.env.next || true
+          printf 'POSTGRES_PASSWORD=%s\n' "$POSTGRES_PASSWORD" >> /tmp/core-runtime.env.next
+          printf 'REDIS_PASSWORD=%s\n' "$REDIS_PASSWORD" >> /tmp/core-runtime.env.next
+          mv /tmp/core-runtime.env.next /tmp/core-runtime.env
+          chmod 600 /tmp/core-runtime.env
+
+          printf '%s\n' \
+            '{' \
+            '  "identities": [' \
+            '    {' \
+            '      "name": "main",' \
+            '      "credentials": [' \
+            '        {' \
+            "          \"accessKey\": \"${SEAWEED_S3_ACCESS_KEY}\"," \
+            "          \"secretKey\": \"${SEAWEED_S3_SECRET_KEY}\"" \
+            '        }' \
+            '      ],' \
+            '      "actions": ["Admin", "Read", "Tagging", "Write", "List"]' \
+            '    }' \
+            '  ]' \
+            '}' \
+            > /tmp/seaweed-s3.json
+          chmod 600 /tmp/seaweed-s3.json
+
+      - name: Deploy core
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: "true"
+          CORE_RUNTIME_ENV_SOURCE_FILE: /tmp/core-runtime.env
+          CORE_RUNTIME_SEAWEED_S3_SOURCE_FILE: /tmp/seaweed-s3.json
+        run: |
+          set -euo pipefail
+          cd ansible
+          ansible-playbook -i /tmp/deploy-hosts.yml playbooks/deploy.yml
