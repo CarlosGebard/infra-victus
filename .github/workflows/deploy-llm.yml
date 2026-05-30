@@ -54,12 +54,12 @@ jobs:
       - name: Connect to Tailscale
         uses: tailscale/github-action@v4
         with:
-          oauth-client-id: ${{ secrets.TAILSCALE_OAUTH_CLIENT_ID }}
-          oauth-secret: ${{ secrets.TAILSCALE_OAUTH_SECRET }}
+          oauth-client-id: ${{ env.TAILSCALE_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ env.TAILSCALE_OAUTH_SECRET }}
           tags: tag:ci
           ping: ${{ env.PROD_HOST }}
         env:
-          TAILSCALE_TAILNET: ${{ secrets.TAILSCALE_TAILNET }}
+          TAILSCALE_TAILNET: ${{ env.TAILSCALE_TAILNET }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
