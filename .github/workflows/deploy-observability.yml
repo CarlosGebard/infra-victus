@@ -61,21 +61,13 @@ jobs:
         env:
           TAILSCALE_TAILNET: ${{ env.TAILSCALE_TAILNET }}
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install Ansible
-        run: python -m pip install --upgrade pip ansible-core
-
-      - name: Prepare deploy context
-        uses: ./.github/actions/prepare-deploy-context
+      - name: Prepare SSH
         env:
           PROD_HOST: ${{ env.PROD_HOST }}
           PROD_SSH_KNOWN_HOSTS: ${{ env.PROD_SSH_KNOWN_HOSTS }}
           PROD_SSH_PORT: ${{ env.PROD_SSH_PORT }}
           PROD_SSH_PRIVATE_KEY: ${{ env.PROD_SSH_PRIVATE_KEY }}
+        run: bash .github/scripts/prepare-ssh.sh
 
       - name: Materialize observability runtime env
         env:
@@ -96,11 +88,37 @@ jobs:
             > /tmp/observability-runtime.env
           chmod 600 /tmp/observability-runtime.env
 
-      - name: Deploy observability
+      - name: Deploy observability over SSH
         env:
-          ANSIBLE_HOST_KEY_CHECKING: "true"
-          OBSERVABILITY_RUNTIME_ENV_SOURCE_FILE: /tmp/observability-runtime.env
+          SSH_PORT: ${{ env.PROD_SSH_PORT || 22 }}
+          DEPLOY_SSH_USER: ${{ env.PROD_SSH_USER || 'carlos' }}
         run: |
           set -euo pipefail
-          cd ansible
-          ansible-playbook -i /tmp/deploy-hosts.yml playbooks/deploy-observability.yml
+
+          rm -rf /tmp/observability-deploy
+          mkdir -p \
+            /tmp/observability-deploy/apps/observability/loki \
+            /tmp/observability-deploy/apps/observability/prometheus \
+            /tmp/observability-deploy/secrets/runtime
+
+          cp compose/projects/observability/compose.yml /tmp/observability-deploy/apps/observability/compose.yml
+          cp compose/projects/observability/compose.prod.yml /tmp/observability-deploy/apps/observability/compose.prod.yml
+          cp compose/configs/loki/config.yml /tmp/observability-deploy/apps/observability/loki/config.yml
+          cp compose/configs/prometheus/prometheus.yml /tmp/observability-deploy/apps/observability/prometheus/prometheus.yml
+          cp /tmp/observability-runtime.env /tmp/observability-deploy/secrets/runtime/observability.env
+
+          tar -C /tmp/observability-deploy -czf /tmp/observability-deploy.tgz .
+          scp -P "$SSH_PORT" /tmp/observability-deploy.tgz "$DEPLOY_SSH_USER@$PROD_HOST:/tmp/observability-deploy.tgz"
+          ssh -p "$SSH_PORT" "$DEPLOY_SSH_USER@$PROD_HOST" 'sudo bash -s' <<'REMOTE'
+          set -euo pipefail
+
+          mkdir -p /srv/apps/observability /srv/secrets/runtime /srv/data/loki /srv/data/prometheus /srv/data/grafana /srv/logs
+          tar -xzf /tmp/observability-deploy.tgz -C /srv
+          chmod 600 /srv/secrets/runtime/observability.env
+          ln -sfn /srv/secrets/runtime/observability.env /srv/apps/observability/.env
+          docker network inspect infra_shared_backend >/dev/null 2>&1 || docker network create infra_shared_backend
+
+          cd /srv/apps/observability
+          docker compose --env-file /srv/secrets/runtime/observability.env -f compose.yml -f compose.prod.yml up -d
+          rm -f /tmp/observability-deploy.tgz
+          REMOTE

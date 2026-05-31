@@ -12,7 +12,7 @@ owners:
 ## Purpose
 
 This runbook describes production deployment through GitHub Actions, Infisical,
-Ansible, and Docker Compose.
+Tailscale, SSH, and Docker Compose.
 
 ## Primary Workflow
 
@@ -67,14 +67,14 @@ stored in git or GitHub repository secrets.
 
 Required secrets are listed in [security.md](security.md).
 
-The workflow pulls secrets from Infisical into GitHub Actions environment
-variables, materializes stack-specific runtime env files under `/tmp`, then
-passes those file paths to Ansible. Ansible copies them into
-`/srv/secrets/runtime/` with `0600` permissions.
+The fast-track workflows pull secrets from Infisical, materialize stack runtime
+files under `/tmp`, package only the required Compose/config files, copy one
+archive to the host, and run one remote SSH command to extract and execute
+`docker compose up -d`.
 
 ## Validation
 
-The deployment workflow validates:
+The full sequential workflow validates:
 
 - required secrets are present.
 - Ansible playbook syntax is valid.
@@ -84,8 +84,8 @@ The deployment workflow validates:
 
 ## Runtime Files
 
-Workflows materialize temporary runtime files and Ansible copies them into the
-server runtime layout.
+Workflows materialize temporary runtime files and copy them into the server
+runtime layout over SSH.
 
 Expected production locations:
 
