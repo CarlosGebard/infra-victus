@@ -6,6 +6,7 @@ set -euo pipefail
 
 SSH_PORT="${PROD_SSH_PORT:-22}"
 DEPLOY_SSH_USER="${DEPLOY_SSH_USER:-carlos}"
+SSH_KEY_PATH="${SSH_KEY_PATH:-$HOME/.ssh/deploy_key}"
 
 [[ -f /tmp/observability-runtime.env ]] || { echo "Missing /tmp/observability-runtime.env" >&2; exit 1; }
 
@@ -22,9 +23,9 @@ cp compose/configs/prometheus/prometheus.yml /tmp/observability-deploy/apps/obse
 cp /tmp/observability-runtime.env /tmp/observability-deploy/secrets/runtime/observability.env
 
 tar -C /tmp/observability-deploy -czf /tmp/observability-deploy.tgz .
-scp -P "$SSH_PORT" /tmp/observability-deploy.tgz "$DEPLOY_SSH_USER@$PROD_HOST:/tmp/observability-deploy.tgz"
+scp -i "$SSH_KEY_PATH" -P "$SSH_PORT" /tmp/observability-deploy.tgz "$DEPLOY_SSH_USER@$PROD_HOST:/tmp/observability-deploy.tgz"
 
-ssh -p "$SSH_PORT" "$DEPLOY_SSH_USER@$PROD_HOST" 'sudo bash -s' <<'REMOTE'
+ssh -i "$SSH_KEY_PATH" -p "$SSH_PORT" "$DEPLOY_SSH_USER@$PROD_HOST" 'sudo bash -s' <<'REMOTE'
 set -euo pipefail
 
 mkdir -p /srv/apps/observability /srv/secrets/runtime /srv/data/observability/loki /srv/data/observability/prometheus /srv/logs

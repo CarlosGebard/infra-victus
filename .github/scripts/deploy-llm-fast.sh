@@ -6,6 +6,7 @@ set -euo pipefail
 
 SSH_PORT="${PROD_SSH_PORT:-22}"
 DEPLOY_SSH_USER="${DEPLOY_SSH_USER:-carlos}"
+SSH_KEY_PATH="${SSH_KEY_PATH:-$HOME/.ssh/deploy_key}"
 
 [[ -f /tmp/llm-runtime.env ]] || { echo "Missing /tmp/llm-runtime.env" >&2; exit 1; }
 
@@ -22,9 +23,9 @@ cp compose/configs/llm-postgres/init/01-create-llm-databases.sh /tmp/llm-deploy/
 cp /tmp/llm-runtime.env /tmp/llm-deploy/secrets/runtime/llm.env
 
 tar -C /tmp/llm-deploy -czf /tmp/llm-deploy.tgz .
-scp -P "$SSH_PORT" /tmp/llm-deploy.tgz "$DEPLOY_SSH_USER@$PROD_HOST:/tmp/llm-deploy.tgz"
+scp -i "$SSH_KEY_PATH" -P "$SSH_PORT" /tmp/llm-deploy.tgz "$DEPLOY_SSH_USER@$PROD_HOST:/tmp/llm-deploy.tgz"
 
-ssh -p "$SSH_PORT" "$DEPLOY_SSH_USER@$PROD_HOST" 'sudo bash -s' <<'REMOTE'
+ssh -i "$SSH_KEY_PATH" -p "$SSH_PORT" "$DEPLOY_SSH_USER@$PROD_HOST" 'sudo bash -s' <<'REMOTE'
 set -euo pipefail
 
 mkdir -p /srv/apps/llm /srv/secrets/runtime /srv/data/llm/postgres

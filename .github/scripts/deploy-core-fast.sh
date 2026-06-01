@@ -6,6 +6,7 @@ set -euo pipefail
 
 SSH_PORT="${PROD_SSH_PORT:-22}"
 DEPLOY_SSH_USER="${DEPLOY_SSH_USER:-carlos}"
+SSH_KEY_PATH="${SSH_KEY_PATH:-$HOME/.ssh/deploy_key}"
 
 [[ -f /tmp/core-runtime.env ]] || { echo "Missing /tmp/core-runtime.env" >&2; exit 1; }
 [[ -f /tmp/seaweed-s3.json ]] || { echo "Missing /tmp/seaweed-s3.json" >&2; exit 1; }
@@ -43,9 +44,9 @@ cp /tmp/core-runtime.env /tmp/core-deploy/secrets/runtime/core.env
 cp /tmp/seaweed-s3.json /tmp/core-deploy/secrets/runtime/seaweed-s3.json
 
 tar -C /tmp/core-deploy -czf /tmp/core-deploy.tgz .
-scp -P "$SSH_PORT" /tmp/core-deploy.tgz "$DEPLOY_SSH_USER@$PROD_HOST:/tmp/core-deploy.tgz"
+scp -i "$SSH_KEY_PATH" -P "$SSH_PORT" /tmp/core-deploy.tgz "$DEPLOY_SSH_USER@$PROD_HOST:/tmp/core-deploy.tgz"
 
-ssh -p "$SSH_PORT" "$DEPLOY_SSH_USER@$PROD_HOST" 'sudo bash -s' <<'REMOTE'
+ssh -i "$SSH_KEY_PATH" -p "$SSH_PORT" "$DEPLOY_SSH_USER@$PROD_HOST" 'sudo bash -s' <<'REMOTE'
 set -euo pipefail
 
 mkdir -p /srv/apps/core /srv/secrets/runtime /srv/logs/nginx-private /srv/logs/nginx-public
