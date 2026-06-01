@@ -118,6 +118,13 @@ validate_postgres_config() {
 	python3 -m py_compile "$db_env" "$db_revision"
 }
 
+validate_litellm_config_renderer() {
+	local renderer="$ROOT_DIR/ops/scripts/runtime/render-litellm-config.py"
+
+	require_file "$renderer"
+	python3 -m py_compile "$renderer"
+}
+
 validate_required_dirs() {
 	local dirs=(
 		"$ROOT_DIR/compose/.tmp/core/nginx-private/logs"
@@ -146,6 +153,7 @@ validate_stack llm
 validate_required_dirs
 validate_seaweed_s3_config
 validate_postgres_config
+validate_litellm_config_renderer
 validate_nginx
 validate_coredns
 

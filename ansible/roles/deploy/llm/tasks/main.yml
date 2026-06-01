@@ -59,6 +59,20 @@
   loop: "{{ deploy_stack.config_files | default([]) }}"
   register: deploy_llm_config_copy
 
+- name: Render LiteLLM runtime config
+  ansible.builtin.shell:
+    cmd: >-
+      {{ deploy_stack.project_dir }}/litellm/render-litellm-config.py
+      --env-file {{ deploy_stack.env_path }}
+      {{ deploy_stack.project_dir }}/litellm/config.yaml.tmp &&
+      if cmp -s {{ deploy_stack.project_dir }}/litellm/config.yaml.tmp {{ deploy_stack.project_dir }}/litellm/config.yaml;
+      then rm {{ deploy_stack.project_dir }}/litellm/config.yaml.tmp;
+      else install -o root -g root -m 0644 {{ deploy_stack.project_dir }}/litellm/config.yaml.tmp {{ deploy_stack.project_dir }}/litellm/config.yaml && echo changed;
+      fi
+    executable: /bin/bash
+  register: deploy_llm_litellm_config_render
+  changed_when: "'changed' in deploy_llm_litellm_config_render.stdout"
+
 - name: Copy llm stack compose files
   ansible.builtin.copy:
     src: "{{ item.src }}"
@@ -107,12 +121,19 @@
     deploy_llm_restart_services: >-
       {{
         (
-          deploy_llm_config_copy.results | default([])
-          | selectattr('changed')
-          | map(attribute='item.restart_services')
-          | select('defined')
-          | list
-          | flatten
+          (
+            deploy_llm_config_copy.results | default([])
+            | selectattr('changed')
+            | map(attribute='item.restart_services')
+            | select('defined')
+            | list
+            | flatten
+          )
+          + (
+            ['litellm']
+            if deploy_llm_litellm_config_render.changed
+            else []
+          )
         ) | difference(deploy_llm_recreate_services | default([]))
       }}
 

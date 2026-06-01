@@ -26,6 +26,9 @@ files, and pre-push checks.
 
 ## Required Production Secrets
 
+Production runtime secrets live in the Infisical path configured by
+`INFISICAL_SECRET_PATH`, currently `Hetzner-Server`.
+
 ```text
 PROD_HOST
 PROD_SSH_PRIVATE_KEY
@@ -39,6 +42,7 @@ LITELLM_DB_PASSWORD
 LITELLM_MASTER_KEY
 LITELLM_SALT_KEY
 LITELLM_UI_PASSWORD
+LITELLM_DEPLOYMENTS_JSON
 LANGFUSE_DB_PASSWORD
 LANGFUSE_NEXTAUTH_SECRET
 LANGFUSE_SALT
@@ -46,6 +50,18 @@ LANGFUSE_ENCRYPTION_KEY
 LANGFUSE_PUBLIC_KEY
 LANGFUSE_SECRET_KEY
 ```
+
+LiteLLM provider keys must be stored in Infisical with the `KEY_` prefix:
+
+```text
+api-keys/
+KEY_GEMINI_FLASH_LITE_01
+KEY_GEMINI_FLASH_LITE_02
+```
+
+`LITELLM_DEPLOYMENTS_JSON` stores routing metadata only. It references provider
+keys by environment variable name through `api_key_env`; it must not contain
+secret values.
 
 Optional production secrets:
 
@@ -64,6 +80,18 @@ Production runtime secret files live under:
 /srv/secrets/runtime/observability.env
 /srv/secrets/runtime/llm.env
 ```
+
+The production LiteLLM config is generated at deploy time:
+
+```text
+/srv/apps/llm/litellm/config.yaml
+```
+
+The generated config uses `api_key: os.environ/KEY_NAME`, so provider key values
+stay in `/srv/secrets/runtime/llm.env` and are not written to the config file.
+
+Consumer pipelines should call LiteLLM with logical model aliases and a LiteLLM
+virtual key. They must not receive provider keys directly.
 
 ## Expected Permissions
 

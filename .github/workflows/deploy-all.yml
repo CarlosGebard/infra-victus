@@ -16,6 +16,7 @@ concurrency:
 
 env:
   DEPLOY_GIT_REF: ${{ inputs.git_ref || github.sha }}
+  INFISICAL_API_KEYS_SECRET_PATH: api-keys
 
 jobs:
   validate:
@@ -66,6 +67,15 @@ jobs:
           env-slug: "${{ vars.INFISICAL_ENV_SLUG }}"
           secret-path: "${{ vars.INFISICAL_SECRET_PATH }}"
 
+      - name: Pull API keys from Infisical
+        uses: Infisical/secrets-action@v1.0.10
+        with:
+          method: "oidc"
+          identity-id: "${{ vars.INFISICAL_IDENTITY_ID }}"
+          project-slug: "${{ vars.INFISICAL_PROJECT_SLUG }}"
+          env-slug: "${{ vars.INFISICAL_ENV_SLUG }}"
+          secret-path: "${{ env.INFISICAL_API_KEYS_SECRET_PATH }}"
+
       - name: Assert all required secrets present
         env:
           PROD_HOST: ${{ env.PROD_HOST }}
@@ -80,6 +90,7 @@ jobs:
           LITELLM_MASTER_KEY: ${{ env.LITELLM_MASTER_KEY }}
           LITELLM_SALT_KEY: ${{ env.LITELLM_SALT_KEY }}
           LITELLM_UI_PASSWORD: ${{ env.LITELLM_UI_PASSWORD }}
+          LITELLM_DEPLOYMENTS_JSON: ${{ env.LITELLM_DEPLOYMENTS_JSON }}
           LANGFUSE_DB_PASSWORD: ${{ env.LANGFUSE_DB_PASSWORD }}
           LANGFUSE_NEXTAUTH_SECRET: ${{ env.LANGFUSE_NEXTAUTH_SECRET }}
           LANGFUSE_SALT: ${{ env.LANGFUSE_SALT }}
@@ -117,6 +128,7 @@ jobs:
           [[ "${LITELLM_MASTER_KEY}" == sk-* ]] || errors+=("LITELLM_MASTER_KEY must start with sk-")
           [[ -n "${LITELLM_SALT_KEY}" ]] || errors+=("Missing LITELLM_SALT_KEY")
           [[ -n "${LITELLM_UI_PASSWORD}" ]] || errors+=("Missing LITELLM_UI_PASSWORD")
+          [[ -n "${LITELLM_DEPLOYMENTS_JSON}" ]] || errors+=("Missing LITELLM_DEPLOYMENTS_JSON")
           [[ -n "${LANGFUSE_DB_PASSWORD}" ]] || errors+=("Missing LANGFUSE_DB_PASSWORD")
           [[ "${#LANGFUSE_DB_PASSWORD}" -ge 16 ]] || errors+=("LANGFUSE_DB_PASSWORD must be at least 16 characters")
           [[ "${LANGFUSE_DB_PASSWORD}" != "change-me" ]] || errors+=("LANGFUSE_DB_PASSWORD must not use local default")
@@ -131,6 +143,8 @@ jobs:
             printf '%s\n' "${errors[@]}" >&2
             exit 1
           fi
+
+          ops/scripts/runtime/render-litellm-config.py >/dev/null
 
   preflight:
     name: Check Host Ready
@@ -371,6 +385,15 @@ jobs:
           env-slug: "${{ vars.INFISICAL_ENV_SLUG }}"
           secret-path: "${{ vars.INFISICAL_SECRET_PATH }}"
 
+      - name: Pull API keys from Infisical
+        uses: Infisical/secrets-action@v1.0.10
+        with:
+          method: "oidc"
+          identity-id: "${{ vars.INFISICAL_IDENTITY_ID }}"
+          project-slug: "${{ vars.INFISICAL_PROJECT_SLUG }}"
+          env-slug: "${{ vars.INFISICAL_ENV_SLUG }}"
+          secret-path: "${{ env.INFISICAL_API_KEYS_SECRET_PATH }}"
+
       - name: Prepare SSH
         env:
           PROD_HOST: ${{ env.PROD_HOST }}
@@ -386,6 +409,7 @@ jobs:
           LITELLM_MASTER_KEY: ${{ env.LITELLM_MASTER_KEY }}
           LITELLM_SALT_KEY: ${{ env.LITELLM_SALT_KEY }}
           LITELLM_UI_PASSWORD: ${{ env.LITELLM_UI_PASSWORD }}
+          LITELLM_DEPLOYMENTS_JSON: ${{ env.LITELLM_DEPLOYMENTS_JSON }}
           LANGFUSE_DB_PASSWORD: ${{ env.LANGFUSE_DB_PASSWORD }}
           LANGFUSE_NEXTAUTH_SECRET: ${{ env.LANGFUSE_NEXTAUTH_SECRET }}
           LANGFUSE_SALT: ${{ env.LANGFUSE_SALT }}
@@ -394,6 +418,8 @@ jobs:
           LANGFUSE_SECRET_KEY: ${{ env.LANGFUSE_SECRET_KEY }}
         run: |
           set -euo pipefail
+
+          litellm_deployments_json="$(python3 -c 'import json, os; print(json.dumps(json.loads(os.environ["LITELLM_DEPLOYMENTS_JSON"]), separators=(",", ":")))')"
 
           printf '%s\n' \
             'LLM_POSTGRES_DB=postgres' \
@@ -407,6 +433,7 @@ jobs:
             'LITELLM_UI_USERNAME=admin' \
             "LITELLM_UI_PASSWORD=${LITELLM_UI_PASSWORD}" \
             'LITELLM_WORKERS=2' \
+            "LITELLM_DEPLOYMENTS_JSON=${litellm_deployments_json}" \
             'LANGFUSE_DB=langfuse' \
             'LANGFUSE_DB_USER=langfuse' \
             "LANGFUSE_DB_PASSWORD=${LANGFUSE_DB_PASSWORD}" \
@@ -419,6 +446,11 @@ jobs:
             "LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}" \
             "LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY}" \
             > /tmp/llm-runtime.env
+          env | sort | while IFS='=' read -r name value; do
+            case "$name" in
+              KEY_*) printf '%s=%s\n' "$name" "$value" >> /tmp/llm-runtime.env ;;
+            esac
+          done
           chmod 600 /tmp/llm-runtime.env
 
       - name: Validate llm deploy files exist

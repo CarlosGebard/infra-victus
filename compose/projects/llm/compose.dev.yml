@@ -10,7 +10,7 @@ services:
     ports:
       - "${LITELLM_BIND_IP:-127.0.0.1}:${LITELLM_PORT:-4000}:4000"
     volumes:
-      - ../../configs/litellm/config.yaml:/app/config.yaml:ro
+      - ../../configs/litellm/config.local.yaml:/app/config.yaml:ro
 
   langfuse:
     ports:

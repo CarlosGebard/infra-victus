@@ -158,10 +158,9 @@ deploy:
     required_files:
       - "{{ srv_secrets_root }}/runtime/llm.env"
     config_files:
-      - src: "{{ playbook_dir }}/../../compose/configs/litellm/config.yaml"
-        dest: "{{ srv_apps_root }}/llm/litellm/config.yaml"
-        restart_services:
-          - litellm
+      - src: "{{ playbook_dir }}/../../ops/scripts/runtime/render-litellm-config.py"
+        dest: "{{ srv_apps_root }}/llm/litellm/render-litellm-config.py"
+        mode: "0755"
       - src: "{{ playbook_dir }}/../../compose/configs/llm-postgres/init/01-create-llm-databases.sh"
         dest: "{{ srv_apps_root }}/llm/llm-postgres/init/01-create-llm-databases.sh"
         mode: "0755"

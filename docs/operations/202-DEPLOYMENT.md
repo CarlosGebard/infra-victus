@@ -57,6 +57,13 @@ git_ref    branch, tag, or commit to deploy
 Production secrets come from Infisical through GitHub OIDC. Secrets are not
 stored in git or GitHub repository secrets.
 
+The deploy workflow reads two Infisical paths:
+
+```text
+Hetzner-Server   runtime infrastructure secrets and LiteLLM routing metadata
+api-keys         provider API keys named KEY_*
+```
+
 Required secrets are listed in [security.md](security.md).
 
 The deployment workflow pulls secrets from Infisical, validates host readiness
@@ -119,6 +126,49 @@ Private NGINX binds to `TAILSCALE_IPV4` and proxies to the services over
 After the first Langfuse login, create a Langfuse project, generate API keys,
 update `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` in Infisical, and
 rerun the deployment.
+
+## LiteLLM Runtime Deployments
+
+LiteLLM deployments are defined in Infisical through `LITELLM_DEPLOYMENTS_JSON`.
+Each entry references a provider key by env var name:
+
+```json
+[
+  {
+    "model_name": "gemini-flash-lite",
+    "model": "gemini/gemini-3.1-flash-lite",
+    "api_key_env": "KEY_GEMINI_FLASH_LITE_01",
+    "rpm": 15,
+    "tpm": 100000
+  }
+]
+```
+
+To add a Gemini key:
+
+1. Add `KEY_GEMINI_FLASH_LITE_NN` in Infisical under `api-keys`.
+2. Add one deployment object referencing that env var.
+3. Rerun the deploy workflow.
+
+To change limits, edit `rpm` or `tpm` in `LITELLM_DEPLOYMENTS_JSON` and rerun
+the deploy workflow. Ansible regenerates:
+
+```text
+/srv/apps/llm/litellm/config.yaml
+```
+
+LiteLLM uses `simple-shuffle` routing, so multiple entries with the same
+`model_name` balance/fail over across deployments.
+
+Validate through the private endpoint:
+
+```bash
+curl http://litellm.victus.io/v1/models \
+  -H "Authorization: Bearer <LITELLM_VIRTUAL_KEY>"
+```
+
+For request traces, inspect the Langfuse project linked by
+`LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY`.
 
 Manual inspection:
 
