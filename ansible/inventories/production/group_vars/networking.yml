@@ -52,3 +52,29 @@ networking:
         redirect_to_https: false
       https:
         enabled: false
+
+    - name: litellm
+      domains:
+        - litellm.victus.io
+      upstream: litellm:4000
+      exposure: private
+      access_policy: private
+      preserve_host: true
+      http:
+        enabled: true
+        redirect_to_https: false
+      https:
+        enabled: false
+
+    - name: langfuse
+      domains:
+        - langfuse.victus.io
+      upstream: langfuse:3000
+      exposure: private
+      access_policy: private
+      preserve_host: true
+      http:
+        enabled: true
+        redirect_to_https: false
+      https:
+        enabled: false

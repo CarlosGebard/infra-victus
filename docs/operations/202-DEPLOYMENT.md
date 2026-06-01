@@ -38,13 +38,7 @@ Internal job order:
 validate -> preflight -> deploy-observability -> deploy-core -> deploy-llm -> verify
 ```
 
-## Triggers
-
-Automatic:
-
-```text
-push to main touching infrastructure paths
-```
+## Trigger
 
 Manual:
 
@@ -65,9 +59,10 @@ stored in git or GitHub repository secrets.
 
 Required secrets are listed in [security.md](security.md).
 
-The deployment workflow pulls secrets from Infisical, prepares SSH and Ansible
-inventory, materializes stack runtime files on the target host, and runs the
-stack playbooks in dependency order.
+The deployment workflow pulls secrets from Infisical, validates host readiness
+with Ansible, materializes stack runtime files in the runner, packages each
+stack into a small archive, copies the archive to the host over SSH, and runs
+`docker compose up -d --remove-orphans` remotely in dependency order.
 
 ## Validation
 
