@@ -61,7 +61,7 @@ The deploy workflow reads two Infisical paths:
 
 ```text
 Hetzner-Server   runtime infrastructure secrets and LiteLLM routing metadata
-api-keys         provider API keys named KEY_*
+/Hetzner-Server/api-keys   provider API keys named KEY_*
 ```
 
 Required secrets are listed in [security.md](security.md).
@@ -146,7 +146,7 @@ Each entry references a provider key by env var name:
 
 To add a Gemini key:
 
-1. Add `KEY_GEMINI_FLASH_LITE_NN` in Infisical under `api-keys`.
+1. Add `KEY_GEMINI_FLASH_LITE_NN` in Infisical under `/Hetzner-Server/api-keys`.
 2. Add one deployment object referencing that env var.
 3. Rerun the deploy workflow.
 

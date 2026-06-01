@@ -16,7 +16,7 @@ concurrency:
 
 env:
   DEPLOY_GIT_REF: ${{ inputs.git_ref || github.sha }}
-  INFISICAL_API_KEYS_SECRET_PATH: api-keys
+  INFISICAL_API_KEYS_SECRET_PATH: /Hetzner-Server/api-keys
 
 jobs:
   validate:

@@ -54,7 +54,7 @@ LANGFUSE_SECRET_KEY
 LiteLLM provider keys must be stored in Infisical with the `KEY_` prefix:
 
 ```text
-api-keys/
+/Hetzner-Server/api-keys/
 KEY_GEMINI_FLASH_LITE_01
 KEY_GEMINI_FLASH_LITE_02
 ```
