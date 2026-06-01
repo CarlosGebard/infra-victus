@@ -10,7 +10,6 @@ related_docs:
   - ../operations/204-TROUBLESHOOTING.md
 tags:
   - observability
-  - grafana
   - prometheus
   - loki
   - langfuse
@@ -23,7 +22,7 @@ tags:
 Victus observability has two layers:
 
 ```text
-infrastructure observability   Grafana, Prometheus, Loki
+infrastructure observability   Prometheus, Loki
 LLM observability              Langfuse via LiteLLM callbacks
 ```
 
@@ -32,7 +31,6 @@ LLM observability              Langfuse via LiteLLM callbacks
 The `observability` stack owns:
 
 ```text
-grafana      dashboards and inspection surface
 prometheus   metrics collection
 loki         log storage and querying
 ```
@@ -50,6 +48,6 @@ LiteLLM sends success and failure callbacks to Langfuse.
 
 ## Boundaries
 
-- Grafana/Prometheus/Loki observe infrastructure runtime health.
+- Prometheus and Loki observe infrastructure runtime health.
 - Langfuse observes LLM requests, cost, and traces.
 - Provider API keys are managed by LiteLLM and persisted in Postgres.

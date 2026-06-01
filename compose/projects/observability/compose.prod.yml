@@ -12,10 +12,3 @@ services:
     volumes:
       - /srv/apps/observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - /srv/data/observability/prometheus:/prometheus
-
-  grafana:
-    ports:
-      - "${GRAFANA_BIND_IP:-127.0.0.1}:${GRAFANA_HTTP_PORT:-3000}:3000"
-    volumes:
-      - /srv/data/observability/grafana:/var/lib/grafana
-      - /srv/apps/observability/grafana/provisioning:/etc/grafana/provisioning:ro

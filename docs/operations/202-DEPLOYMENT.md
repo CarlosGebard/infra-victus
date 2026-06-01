@@ -16,21 +16,13 @@ Tailscale, SSH, and Docker Compose.
 
 ## Primary Workflow
 
-Fast-track production deploys use one workflow per Compose project:
-
-```text
-.github/workflows/deploy-core.yml
-.github/workflows/deploy-observability.yml
-.github/workflows/deploy-llm.yml
-```
-
-The full sequential workflow remains available for coordinated recovery:
+Production deploys use the full sequential workflow:
 
 ```text
 .github/workflows/deploy-all.yml
 ```
 
-Stack dependency:
+The workflow deploys stacks in order:
 
 ```text
 observability -> core -> llm
@@ -39,6 +31,12 @@ observability -> core -> llm
 The `observability` stack is deployed first so monitoring is available before
 the core stack is rolled out. The `llm` stack is deployed after core so the
 shared Docker network is already present.
+
+Internal job order:
+
+```text
+validate -> preflight -> deploy-observability -> deploy-core -> deploy-llm -> verify
+```
 
 ## Triggers
 
@@ -51,7 +49,7 @@ push to main touching infrastructure paths
 Manual:
 
 ```text
-GitHub Actions -> Deploy <stack> Fast Track -> Run workflow
+GitHub Actions -> Deploy All Stacks -> Run workflow
 ```
 
 Manual input:
@@ -67,10 +65,9 @@ stored in git or GitHub repository secrets.
 
 Required secrets are listed in [security.md](security.md).
 
-The fast-track workflows pull secrets from Infisical, materialize stack runtime
-files under `/tmp`, package only the required Compose/config files, copy one
-archive to the host, and run one remote SSH command to extract and execute
-`docker compose up -d`.
+The deployment workflow pulls secrets from Infisical, prepares SSH and Ansible
+inventory, materializes stack runtime files on the target host, and runs the
+stack playbooks in dependency order.
 
 ## Validation
 
@@ -107,7 +104,6 @@ nginx-public
 seaweedfs
 loki
 prometheus
-grafana
 llm-postgres
 litellm
 langfuse

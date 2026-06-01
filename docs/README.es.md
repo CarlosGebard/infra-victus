@@ -9,7 +9,7 @@ Este repo no contiene la app. Provee la base compartida usada por otros reposito
 - eventos live en Redis
 - DNS privado con CoreDNS
 - edge privado con NGINX
-- observabilidad con Grafana, Prometheus y Loki
+- observabilidad con Prometheus y Loki
 - deploy con Ansible y GitHub Actions
 
 [Read in English](../README.md)
@@ -28,7 +28,7 @@ Stacks:
 
 ```text
 core            nginx, seaweedfs, postgres, redis, etcd, coredns
-observability   grafana, prometheus, loki
+observability   prometheus, loki
 llm             LiteLLM, Langfuse, Postgres
 ```
 

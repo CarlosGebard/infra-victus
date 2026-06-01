@@ -51,7 +51,7 @@ Detailed architecture is split into focused modules:
 architecture/101-NETWORKING.md        Tailscale, Docker networks, CoreDNS
 architecture/102-COMPUTE-RUNTIMES.md  Docker Compose, Ansible, stack runtime
 architecture/103-DATA-STORAGE.md      SeaweedFS, Postgres, Redis, volumes
-architecture/104-OBSERVABILITY.md     Grafana, Prometheus, Loki, Langfuse
+architecture/104-OBSERVABILITY.md     Prometheus, Loki, Langfuse
 ```
 
 ## Major Components
@@ -107,7 +107,6 @@ compose/projects/observability/
 Components:
 
 ```text
-grafana      dashboard and inspection surface
 prometheus   metrics collection
 loki         log storage and querying
 ```
@@ -343,7 +342,6 @@ Redis Streams    durable event stream
 CoreDNS/etcd     private DNS service and backing store
 Prometheus       metrics collection
 Loki             log aggregation
-Grafana          observability UI
 ```
 
 ## Documentation Links

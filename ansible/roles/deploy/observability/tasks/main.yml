@@ -113,12 +113,13 @@
 
 - name: Deploy the observability stack
   ansible.builtin.command:
-    cmd: docker compose --env-file {{ deploy_stack.env_path }} {{ deploy_observability_compose_args }} up -d
+    cmd: docker compose --env-file {{ deploy_stack.env_path }} {{ deploy_observability_compose_args }} up -d --remove-orphans
   register: deploy_observability_up
   changed_when: >-
     'Started' in deploy_observability_up.stdout or
     'Recreated' in deploy_observability_up.stdout or
-    'Creating' in deploy_observability_up.stdout
+    'Creating' in deploy_observability_up.stdout or
+    'Removing' in deploy_observability_up.stdout
 
 - name: Force recreate observability services with runtime definition changes
   ansible.builtin.command:

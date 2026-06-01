@@ -60,7 +60,6 @@ validate_nginx() {
 	log "Validating private nginx config"
 	docker run --rm \
 		--add-host seaweedfs:127.0.0.1 \
-		--add-host grafana:127.0.0.1 \
 		--add-host prometheus:127.0.0.1 \
 		--add-host loki:127.0.0.1 \
 		-v "$nginx_conf:/etc/nginx/nginx.conf:ro" \
@@ -127,7 +126,6 @@ validate_required_dirs() {
 		"$ROOT_DIR/compose/.tmp/core/etcd/data"
 		"$ROOT_DIR/compose/.tmp/core/postgres/data"
 		"$ROOT_DIR/compose/.tmp/core/redis/data"
-		"$ROOT_DIR/compose/.tmp/observability/grafana"
 		"$ROOT_DIR/compose/.tmp/observability/loki"
 		"$ROOT_DIR/compose/.tmp/observability/prometheus"
 		"$ROOT_DIR/compose/.tmp/llm/postgres/data"

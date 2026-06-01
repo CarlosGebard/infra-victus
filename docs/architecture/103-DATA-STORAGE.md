@@ -42,7 +42,6 @@ Production paths:
 ## Observability Storage
 
 ```text
-Grafana      dashboards and app state
 Prometheus   metrics TSDB
 Loki         log store
 ```
@@ -50,7 +49,6 @@ Loki         log store
 Production paths:
 
 ```text
-/srv/data/observability/grafana
 /srv/data/observability/prometheus
 /srv/data/observability/loki
 ```

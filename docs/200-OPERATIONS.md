@@ -87,7 +87,6 @@ Required production secrets are documented in
 The `observability` stack provides:
 
 ```text
-grafana      dashboards and inspection surface
 prometheus   metrics collection
 loki         log storage and querying
 ```

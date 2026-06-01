@@ -105,12 +105,9 @@ deploy:
     compose_services:
       - loki
       - prometheus
-      - grafana
     directories:
       - { path: "{{ srv_apps_root }}/observability/loki", mode: "0755" }
       - { path: "{{ srv_apps_root }}/observability/prometheus", mode: "0755" }
-      - { path: "{{ srv_apps_root }}/observability/grafana/provisioning/datasources", mode: "0755" }
-      - { path: "{{ srv_apps_root }}/observability/grafana/provisioning/dashboards", mode: "0755" }
     staged_secret_files:
       - source_file: "{{ lookup('ansible.builtin.env', 'OBSERVABILITY_RUNTIME_ENV_SOURCE_FILE') | default('', true) }}"
         dest: "{{ srv_secrets_root }}/runtime/observability.env"
@@ -118,7 +115,6 @@ deploy:
         recreate_services:
           - loki
           - prometheus
-          - grafana
     required_files:
       - "{{ srv_secrets_root }}/runtime/observability.env"
     config_files:
