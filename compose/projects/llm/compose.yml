@@ -62,6 +62,7 @@ services:
     container_name: langfuse
     restart: unless-stopped
     environment:
+      HOSTNAME: 0.0.0.0
       DATABASE_URL: postgresql://${LANGFUSE_DB_USER:-langfuse}:${LANGFUSE_DB_PASSWORD}@llm-postgres:5432/${LANGFUSE_DB:-langfuse}
       NEXTAUTH_URL: ${LANGFUSE_NEXTAUTH_URL:-http://localhost:3000}
       NEXTAUTH_SECRET: ${LANGFUSE_NEXTAUTH_SECRET}

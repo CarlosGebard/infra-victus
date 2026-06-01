@@ -62,6 +62,7 @@ docker network inspect infra_shared_backend >/dev/null 2>&1 || docker network cr
 cd /srv/apps/core
 CORE_ENV_FILE=/srv/secrets/runtime/core.env CORE_COMPOSE_OVERLAY=/srv/apps/core/compose.prod.yml ./scripts/sync-core-dns.sh
 docker compose --env-file /srv/secrets/runtime/core.env -f compose.yml -f compose.prod.yml up -d --remove-orphans
+docker compose --env-file /srv/secrets/runtime/core.env -f compose.yml -f compose.prod.yml restart nginx-private nginx-public
 docker run --rm \
   --network core_core_backend \
   -v /srv/apps/core/scripts/apply-s3-buckets.py:/apply-s3-buckets.py:ro \
