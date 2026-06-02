@@ -1,0 +1,54 @@
+{
+  "prompts": [
+    {
+      "name": "claims",
+      "path": "claims.md",
+      "type": "chat",
+      "role": "system",
+      "labels": ["production"],
+      "config": {
+        "temperature": 0
+      }
+    },
+    {
+      "name": "md_to_json_first",
+      "path": "md_to_json_first.md",
+      "type": "chat",
+      "role": "system",
+      "labels": ["production"],
+      "config": {
+        "temperature": 0
+      }
+    },
+    {
+      "name": "md_to_json_next",
+      "path": "md_to_json_next.md",
+      "type": "chat",
+      "role": "system",
+      "labels": ["production"],
+      "config": {
+        "temperature": 0
+      }
+    },
+    {
+      "name": "paper_selector_dataset_gaps_system",
+      "path": "paper_selector_dataset_gaps_system.md",
+      "type": "chat",
+      "role": "system",
+      "labels": ["production"],
+      "config": {
+        "temperature": 0
+      }
+    },
+    {
+      "name": "paper_selector_system",
+      "path": "paper_selector_system.md",
+      "type": "chat",
+      "role": "system",
+      "labels": ["production"],
+      "config": {
+        "temperature": 0
+      }
+    }
+  ]
+}

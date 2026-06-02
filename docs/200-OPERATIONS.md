@@ -18,6 +18,7 @@ related_docs:
   - operations/202-DEPLOYMENT.md
   - operations/203-SECURITY.md
   - operations/204-TROUBLESHOOTING.md
+  - operations/206-LANGFUSE-PROMPTS.md
 tags:
   - operations
   - deployment
@@ -67,6 +68,8 @@ Primary operational workflows live in focused runbooks:
   and pre-push safety checks.
 - [operations/204-TROUBLESHOOTING.md](operations/204-TROUBLESHOOTING.md) -> common
   runtime failures and recovery guidance.
+- [operations/206-LANGFUSE-PROMPTS.md](operations/206-LANGFUSE-PROMPTS.md) ->
+  repository-owned Langfuse prompt sync.
 
 ## Configuration
 
@@ -109,6 +112,9 @@ Operational recovery should prefer idempotent workflows:
 
 Common recovery procedures live in
 [operations/204-TROUBLESHOOTING.md](operations/204-TROUBLESHOOTING.md).
+
+Langfuse prompt sync procedures live in
+[operations/206-LANGFUSE-PROMPTS.md](operations/206-LANGFUSE-PROMPTS.md).
 
 ## Operational Boundaries
 
