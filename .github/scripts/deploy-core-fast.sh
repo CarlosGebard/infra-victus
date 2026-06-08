@@ -66,7 +66,9 @@ fi
 cd /srv/apps/core
 CORE_ENV_FILE=/srv/secrets/runtime/core.env CORE_COMPOSE_OVERLAY=/srv/apps/core/compose.prod.yml ./scripts/sync-core-dns.sh
 docker compose --env-file /srv/secrets/runtime/core.env -f compose.yml -f compose.prod.yml up -d --remove-orphans
-docker compose --env-file /srv/secrets/runtime/core.env -f compose.yml -f compose.prod.yml restart nginx-private nginx-public
+docker compose --env-file /srv/secrets/runtime/core.env -f compose.yml -f compose.prod.yml up -d --force-recreate nginx-private nginx-public
+docker compose --env-file /srv/secrets/runtime/core.env -f compose.yml -f compose.prod.yml ps nginx-private nginx-public
+ss -ltnp | grep -E ':(80|443)\s' || true
 docker run --rm \
   --network core_core_backend \
   -v /srv/apps/core/scripts/apply-s3-buckets.py:/apply-s3-buckets.py:ro \
