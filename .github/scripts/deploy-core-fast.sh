@@ -58,6 +58,10 @@ chmod 0400 /srv/secrets/runtime/seaweed-s3.json
 chmod +x /srv/apps/core/scripts/*.sh /srv/apps/core/scripts/*.py
 ln -sfn /srv/secrets/runtime/core.env /srv/apps/core/.env
 docker network inspect infra_shared_backend >/dev/null 2>&1 || docker network create infra_shared_backend
+if command -v ufw >/dev/null 2>&1; then
+  ufw allow 80/tcp
+  ufw allow 443/tcp
+fi
 
 cd /srv/apps/core
 CORE_ENV_FILE=/srv/secrets/runtime/core.env CORE_COMPOSE_OVERLAY=/srv/apps/core/compose.prod.yml ./scripts/sync-core-dns.sh
