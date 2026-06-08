@@ -114,8 +114,8 @@ prometheus
 llm-postgres
 litellm
 langfuse
-wikijs
-wikijs-postgres
+wiki
+wiki-database
 ```
 
 LLM service endpoints:

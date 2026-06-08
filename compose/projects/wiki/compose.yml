@@ -1,7 +1,7 @@
 services:
   wiki:
     image: ghcr.io/requarks/wiki:2
-    container_name: wikijs
+    container_name: wiki
     restart: unless-stopped
     environment:
       DB_TYPE: postgres
@@ -19,7 +19,7 @@ services:
 
   wiki-database:
     image: postgres:15-alpine
-    container_name: wikijs-postgres
+    container_name: wiki-database
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${WIKIJS_DB_NAME:-victus_documentation}
