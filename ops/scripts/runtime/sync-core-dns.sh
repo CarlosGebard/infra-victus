@@ -78,6 +78,10 @@ tailscale_ipv4() {
   ip -4 addr show dev "$TAILSCALE_INTERFACE" | awk '/inet / {print $2}' | cut -d/ -f1 | head -n1
 }
 
+public_ipv4() {
+  ip -4 route get 1.1.1.1 | awk '{for (i = 1; i <= NF; i++) if ($i == "src") {print $(i + 1); exit}}'
+}
+
 etcd_put() {
   local key="$1"
   local value="$2"
@@ -136,7 +140,7 @@ write_managed_env_block() {
     BEGIN { skip=0 }
     /^# BEGIN managed: core-private-dns$/ { skip=1; next }
     /^# END managed: core-private-dns$/ { skip=0; next }
-    $1 ~ /^(TAILSCALE_INTERFACE|TAILSCALE_IPV4|DNS_ZONE|ETCD_PREFIX|DNS_TTL|COREDNS_BIND_IP|COREDNS_DNS_PORT|S3_DOMAIN|POSTGRES_DOMAIN|POSTGRES_BIND_IP|POSTGRES_PORT|REDIS_DOMAIN|REDIS_BIND_IP|REDIS_PORT|LITELLM_DOMAIN|LANGFUSE_DOMAIN)=/ { next }
+    $1 ~ /^(TAILSCALE_INTERFACE|TAILSCALE_IPV4|DNS_ZONE|ETCD_PREFIX|DNS_TTL|COREDNS_BIND_IP|COREDNS_DNS_PORT|NGINX_BIND_IP|NGINX_HTTP_PORT|NGINX_PUBLIC_BIND_IP|NGINX_PUBLIC_HTTP_PORT|NGINX_PUBLIC_HTTPS_PORT|S3_DOMAIN|POSTGRES_DOMAIN|POSTGRES_BIND_IP|POSTGRES_PORT|REDIS_DOMAIN|REDIS_BIND_IP|REDIS_PORT|LITELLM_DOMAIN|LANGFUSE_DOMAIN)=/ { next }
     skip == 0 { print }
   ' "$target" > "$tmp_file"
 
@@ -151,8 +155,9 @@ COREDNS_BIND_IP=$TAILSCALE_IP
 COREDNS_DNS_PORT=$COREDNS_DNS_PORT
 NGINX_BIND_IP=${NGINX_BIND_IP:-$TAILSCALE_IP}
 NGINX_HTTP_PORT=${NGINX_HTTP_PORT:-8080}
-NGINX_HTTPS_BIND_IP=${NGINX_HTTPS_BIND_IP:-0.0.0.0}
-NGINX_HTTPS_PORT=${NGINX_HTTPS_PORT:-443}
+NGINX_PUBLIC_BIND_IP=${NGINX_PUBLIC_BIND_IP:-$PUBLIC_IP}
+NGINX_PUBLIC_HTTP_PORT=${NGINX_PUBLIC_HTTP_PORT:-80}
+NGINX_PUBLIC_HTTPS_PORT=${NGINX_PUBLIC_HTTPS_PORT:-443}
 S3_DOMAIN=$S3_DOMAIN
 POSTGRES_DOMAIN=$POSTGRES_DOMAIN
 POSTGRES_BIND_IP=${POSTGRES_BIND_IP:-$TAILSCALE_IP}
@@ -177,14 +182,22 @@ ensure_file "$ENV_FILE"
 
 NGINX_BIND_IP="${NGINX_BIND_IP:-$(env_value NGINX_BIND_IP)}"
 NGINX_HTTP_PORT="${NGINX_HTTP_PORT:-$(env_value NGINX_HTTP_PORT)}"
-NGINX_HTTPS_BIND_IP="${NGINX_HTTPS_BIND_IP:-$(env_value NGINX_HTTPS_BIND_IP)}"
-NGINX_HTTPS_PORT="${NGINX_HTTPS_PORT:-$(env_value NGINX_HTTPS_PORT)}"
+NGINX_PUBLIC_BIND_IP="${NGINX_PUBLIC_BIND_IP:-$(env_value NGINX_PUBLIC_BIND_IP)}"
+NGINX_PUBLIC_HTTP_PORT="${NGINX_PUBLIC_HTTP_PORT:-$(env_value NGINX_PUBLIC_HTTP_PORT)}"
+NGINX_PUBLIC_HTTPS_PORT="${NGINX_PUBLIC_HTTPS_PORT:-$(env_value NGINX_PUBLIC_HTTPS_PORT)}"
 
 TAILSCALE_IP="${TAILSCALE_IPV4:-}"
 if [[ -z "$TAILSCALE_IP" ]]; then
   TAILSCALE_IP="$(tailscale_ipv4)"
 fi
 [[ -n "$TAILSCALE_IP" ]] || err "No IPv4 found on interface $TAILSCALE_INTERFACE"
+
+PUBLIC_IP="${NGINX_PUBLIC_BIND_IP:-}"
+if [[ -z "$PUBLIC_IP" || "$PUBLIC_IP" == "0.0.0.0" ]]; then
+  PUBLIC_IP="$(public_ipv4)"
+fi
+[[ -n "$PUBLIC_IP" ]] || err "No public IPv4 could be derived for nginx-public"
+
 write_managed_env_block "$ENV_FILE"
 
 STORAGE_KEY="$(skydns_key_for_name "$S3_DOMAIN")"
@@ -202,6 +215,7 @@ LITELLM_VALUE="$STORAGE_VALUE"
 LANGFUSE_VALUE="$STORAGE_VALUE"
 
 log "Detected Tailscale IPv4: $TAILSCALE_IP"
+log "Detected public IPv4: $PUBLIC_IP"
 log "Updated runtime env file: $ENV_FILE"
 log "Ensuring DNS services are running with current bind IP"
 compose_up "$ETCD_SERVICE_NAME"

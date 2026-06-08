@@ -137,9 +137,10 @@ Wiki.js is published through `nginx-public` and proxies to `wiki:3000` over
 https://wiki.victus.fit
 ```
 
-If `nginx-private` also binds port `80`, set `NGINX_PUBLIC_BIND_IP` to the
-host public IPv4 in `CORE_RUNTIME_ENV` so public and private NGINX do not
-compete for the same host socket.
+If `nginx-private` also binds port `80`, `sync-core-dns.sh` derives
+`NGINX_PUBLIC_BIND_IP` from the VPS public route so public and private NGINX do
+not compete for the same host socket. Override `NGINX_PUBLIC_BIND_IP` in
+`CORE_RUNTIME_ENV` only when the host has multiple public IPv4 addresses.
 
 To preserve an existing Wiki.js database from the previous media stack, set
 this in `WIKI_RUNTIME_ENV` before deploy:
