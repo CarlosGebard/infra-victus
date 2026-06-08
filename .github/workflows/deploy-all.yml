@@ -16,6 +16,10 @@ concurrency:
 
 env:
   DEPLOY_GIT_REF: ${{ inputs.git_ref || github.sha }}
+  INFISICAL_GLOBAL_SECRET_PATH: /Hetzner-Server/global
+  INFISICAL_CORE_SECRET_PATH: /Hetzner-Server/core
+  INFISICAL_LLM_SECRET_PATH: /Hetzner-Server/llm
+  INFISICAL_WIKI_SECRET_PATH: /Hetzner-Server/wiki
   INFISICAL_API_KEYS_SECRET_PATH: /Hetzner-Server/api-keys
 
 jobs:
@@ -49,6 +53,7 @@ jobs:
           bash tests/ansible/deploy-syntax-check.sh
           bash tests/ansible/deploy-observability-syntax-check.sh
           bash tests/ansible/deploy-llm-syntax-check.sh
+          bash tests/ansible/deploy-wiki-syntax-check.sh
           bash tests/ansible/preflight-syntax-check.sh
           bash tests/ansible/review-syntax-check.sh
 
@@ -58,14 +63,41 @@ jobs:
 
           make compose-validate
 
-      - name: Pull secrets from Infisical
+      - name: Pull global secrets from Infisical
         uses: Infisical/secrets-action@v1.0.10
         with:
           method: "oidc"
           identity-id: "${{ vars.INFISICAL_IDENTITY_ID }}"
           project-slug: "${{ vars.INFISICAL_PROJECT_SLUG }}"
           env-slug: "${{ vars.INFISICAL_ENV_SLUG }}"
-          secret-path: "${{ vars.INFISICAL_SECRET_PATH }}"
+          secret-path: "${{ env.INFISICAL_GLOBAL_SECRET_PATH }}"
+
+      - name: Pull core secrets from Infisical
+        uses: Infisical/secrets-action@v1.0.10
+        with:
+          method: "oidc"
+          identity-id: "${{ vars.INFISICAL_IDENTITY_ID }}"
+          project-slug: "${{ vars.INFISICAL_PROJECT_SLUG }}"
+          env-slug: "${{ vars.INFISICAL_ENV_SLUG }}"
+          secret-path: "${{ env.INFISICAL_CORE_SECRET_PATH }}"
+
+      - name: Pull llm secrets from Infisical
+        uses: Infisical/secrets-action@v1.0.10
+        with:
+          method: "oidc"
+          identity-id: "${{ vars.INFISICAL_IDENTITY_ID }}"
+          project-slug: "${{ vars.INFISICAL_PROJECT_SLUG }}"
+          env-slug: "${{ vars.INFISICAL_ENV_SLUG }}"
+          secret-path: "${{ env.INFISICAL_LLM_SECRET_PATH }}"
+
+      - name: Pull wiki secrets from Infisical
+        uses: Infisical/secrets-action@v1.0.10
+        with:
+          method: "oidc"
+          identity-id: "${{ vars.INFISICAL_IDENTITY_ID }}"
+          project-slug: "${{ vars.INFISICAL_PROJECT_SLUG }}"
+          env-slug: "${{ vars.INFISICAL_ENV_SLUG }}"
+          secret-path: "${{ env.INFISICAL_WIKI_SECRET_PATH }}"
 
       - name: Pull API keys from Infisical
         uses: Infisical/secrets-action@v1.0.10
@@ -97,6 +129,7 @@ jobs:
           LANGFUSE_ENCRYPTION_KEY: ${{ env.LANGFUSE_ENCRYPTION_KEY }}
           LANGFUSE_PUBLIC_KEY: ${{ env.LANGFUSE_PUBLIC_KEY }}
           LANGFUSE_SECRET_KEY: ${{ env.LANGFUSE_SECRET_KEY }}
+          WIKIJS_DB_PASSWORD: ${{ env.WIKIJS_DB_PASSWORD }}
         run: |
           set -euo pipefail
           
@@ -138,6 +171,11 @@ jobs:
           [[ "${#LANGFUSE_ENCRYPTION_KEY}" -eq 64 ]] || errors+=("LANGFUSE_ENCRYPTION_KEY must be 64 hex characters")
           [[ -n "${LANGFUSE_PUBLIC_KEY}" ]] || errors+=("Missing LANGFUSE_PUBLIC_KEY")
           [[ -n "${LANGFUSE_SECRET_KEY}" ]] || errors+=("Missing LANGFUSE_SECRET_KEY")
+
+          # Wiki.js secrets
+          [[ -n "${WIKIJS_DB_PASSWORD}" ]] || errors+=("Missing WIKIJS_DB_PASSWORD")
+          [[ "${#WIKIJS_DB_PASSWORD}" -ge 16 ]] || errors+=("WIKIJS_DB_PASSWORD must be at least 16 characters")
+          [[ "${WIKIJS_DB_PASSWORD}" != "change-me" ]] || errors+=("WIKIJS_DB_PASSWORD must not use local default")
           
           if [[ ${#errors[@]} -gt 0 ]]; then
             printf '%s\n' "${errors[@]}" >&2
@@ -167,14 +205,14 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Pull secrets from Infisical
+      - name: Pull global secrets from Infisical
         uses: Infisical/secrets-action@v1.0.10
         with:
           method: "oidc"
           identity-id: "${{ vars.INFISICAL_IDENTITY_ID }}"
           project-slug: "${{ vars.INFISICAL_PROJECT_SLUG }}"
           env-slug: "${{ vars.INFISICAL_ENV_SLUG }}"
-          secret-path: "${{ vars.INFISICAL_SECRET_PATH }}"
+          secret-path: "${{ env.INFISICAL_GLOBAL_SECRET_PATH }}"
 
       - name: Install Ansible
         run: python -m pip install --upgrade pip ansible-core
@@ -215,14 +253,14 @@ jobs:
         with:
           ref: ${{ env.DEPLOY_GIT_REF }}
 
-      - name: Pull secrets from Infisical
+      - name: Pull global secrets from Infisical
         uses: Infisical/secrets-action@v1.0.10
         with:
           method: "oidc"
           identity-id: "${{ vars.INFISICAL_IDENTITY_ID }}"
           project-slug: "${{ vars.INFISICAL_PROJECT_SLUG }}"
           env-slug: "${{ vars.INFISICAL_ENV_SLUG }}"
-          secret-path: "${{ vars.INFISICAL_SECRET_PATH }}"
+          secret-path: "${{ env.INFISICAL_GLOBAL_SECRET_PATH }}"
 
       - name: Prepare SSH
         env:
@@ -273,14 +311,23 @@ jobs:
         with:
           ref: ${{ env.DEPLOY_GIT_REF }}
 
-      - name: Pull secrets from Infisical
+      - name: Pull global secrets from Infisical
         uses: Infisical/secrets-action@v1.0.10
         with:
           method: "oidc"
           identity-id: "${{ vars.INFISICAL_IDENTITY_ID }}"
           project-slug: "${{ vars.INFISICAL_PROJECT_SLUG }}"
           env-slug: "${{ vars.INFISICAL_ENV_SLUG }}"
-          secret-path: "${{ vars.INFISICAL_SECRET_PATH }}"
+          secret-path: "${{ env.INFISICAL_GLOBAL_SECRET_PATH }}"
+
+      - name: Pull core secrets from Infisical
+        uses: Infisical/secrets-action@v1.0.10
+        with:
+          method: "oidc"
+          identity-id: "${{ vars.INFISICAL_IDENTITY_ID }}"
+          project-slug: "${{ vars.INFISICAL_PROJECT_SLUG }}"
+          env-slug: "${{ vars.INFISICAL_ENV_SLUG }}"
+          secret-path: "${{ env.INFISICAL_CORE_SECRET_PATH }}"
 
       - name: Prepare SSH
         env:
@@ -376,14 +423,23 @@ jobs:
         with:
           ref: ${{ env.DEPLOY_GIT_REF }}
 
-      - name: Pull secrets from Infisical
+      - name: Pull global secrets from Infisical
         uses: Infisical/secrets-action@v1.0.10
         with:
           method: "oidc"
           identity-id: "${{ vars.INFISICAL_IDENTITY_ID }}"
           project-slug: "${{ vars.INFISICAL_PROJECT_SLUG }}"
           env-slug: "${{ vars.INFISICAL_ENV_SLUG }}"
-          secret-path: "${{ vars.INFISICAL_SECRET_PATH }}"
+          secret-path: "${{ env.INFISICAL_GLOBAL_SECRET_PATH }}"
+
+      - name: Pull llm secrets from Infisical
+        uses: Infisical/secrets-action@v1.0.10
+        with:
+          method: "oidc"
+          identity-id: "${{ vars.INFISICAL_IDENTITY_ID }}"
+          project-slug: "${{ vars.INFISICAL_PROJECT_SLUG }}"
+          env-slug: "${{ vars.INFISICAL_ENV_SLUG }}"
+          secret-path: "${{ env.INFISICAL_LLM_SECRET_PATH }}"
 
       - name: Pull API keys from Infisical
         uses: Infisical/secrets-action@v1.0.10
@@ -466,9 +522,86 @@ jobs:
           DEPLOY_SSH_USER: ${{ env.PROD_SSH_USER || 'carlos' }}
         run: bash .github/scripts/deploy-llm-fast.sh
 
+  deploy-wiki:
+    name: Deploy Wiki.js Stack
+    needs: [deploy-core]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.DEPLOY_GIT_REF }}
+
+      - name: Pull global secrets from Infisical
+        uses: Infisical/secrets-action@v1.0.10
+        with:
+          method: "oidc"
+          identity-id: "${{ vars.INFISICAL_IDENTITY_ID }}"
+          project-slug: "${{ vars.INFISICAL_PROJECT_SLUG }}"
+          env-slug: "${{ vars.INFISICAL_ENV_SLUG }}"
+          secret-path: "${{ env.INFISICAL_GLOBAL_SECRET_PATH }}"
+
+      - name: Pull wiki secrets from Infisical
+        uses: Infisical/secrets-action@v1.0.10
+        with:
+          method: "oidc"
+          identity-id: "${{ vars.INFISICAL_IDENTITY_ID }}"
+          project-slug: "${{ vars.INFISICAL_PROJECT_SLUG }}"
+          env-slug: "${{ vars.INFISICAL_ENV_SLUG }}"
+          secret-path: "${{ env.INFISICAL_WIKI_SECRET_PATH }}"
+
+      - name: Prepare SSH
+        env:
+          PROD_HOST: ${{ env.PROD_HOST }}
+          PROD_SSH_KNOWN_HOSTS: ${{ env.PROD_SSH_KNOWN_HOSTS }}
+          PROD_SSH_PORT: ${{ env.PROD_SSH_PORT }}
+          PROD_SSH_PRIVATE_KEY: ${{ env.PROD_SSH_PRIVATE_KEY }}
+        run: bash .github/scripts/prepare-ssh.sh
+
+      - name: Materialize wiki runtime env
+        env:
+          WIKI_RUNTIME_ENV: ${{ vars.WIKI_RUNTIME_ENV }}
+          WIKIJS_DB_PASSWORD: ${{ env.WIKIJS_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          if [[ -n "${WIKI_RUNTIME_ENV:-}" ]]; then
+            printf '%s\n' "$WIKI_RUNTIME_ENV" > /tmp/wiki-runtime.env
+          else
+            printf '%s\n' \
+              'WIKIJS_DB_USER=wikijs' \
+              'WIKIJS_DB_NAME=victus_documentation' \
+              'WIKIJS_DB_DATA_LOCATION=/srv/data/wiki/postgres' \
+              > /tmp/wiki-runtime.env
+          fi
+
+          grep -Ev '^WIKIJS_DB_PASSWORD=' /tmp/wiki-runtime.env > /tmp/wiki-runtime.env.next || true
+          printf 'WIKIJS_DB_PASSWORD=%s\n' "${WIKIJS_DB_PASSWORD}" >> /tmp/wiki-runtime.env.next
+          mv /tmp/wiki-runtime.env.next /tmp/wiki-runtime.env
+          chmod 600 /tmp/wiki-runtime.env
+
+      - name: Validate wiki deploy files exist
+        run: |
+          set -euo pipefail
+
+          [[ -f /tmp/wiki-runtime.env ]] || { echo "✗ Missing /tmp/wiki-runtime.env"; exit 1; }
+
+      - name: Deploy wiki
+        env:
+          PROD_HOST: ${{ env.PROD_HOST }}
+          PROD_SSH_PORT: ${{ env.PROD_SSH_PORT }}
+          DEPLOY_SSH_USER: ${{ env.PROD_SSH_USER || 'carlos' }}
+        run: bash .github/scripts/deploy-wiki-fast.sh
+
   verify:
     name: Review deployed state
-    needs: [deploy-llm]
+    needs: [deploy-llm, deploy-wiki]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: production
@@ -490,14 +623,14 @@ jobs:
       - name: Install Ansible
         run: python -m pip install --upgrade pip ansible-core
 
-      - name: Pull secrets from Infisical
+      - name: Pull global secrets from Infisical
         uses: Infisical/secrets-action@v1.0.10
         with:
           method: "oidc"
           identity-id: "${{ vars.INFISICAL_IDENTITY_ID }}"
           project-slug: "${{ vars.INFISICAL_PROJECT_SLUG }}"
           env-slug: "${{ vars.INFISICAL_ENV_SLUG }}"
-          secret-path: "${{ vars.INFISICAL_SECRET_PATH }}"
+          secret-path: "${{ env.INFISICAL_GLOBAL_SECRET_PATH }}"
 
       - name: Prepare deploy context
         uses: ./.github/actions/prepare-deploy-context
@@ -535,6 +668,7 @@ jobs:
           - observability (Loki, Prometheus)
           - core (nginx-private, nginx-public, SeaweedFS)
           - llm (LiteLLM, Langfuse)
+          - wiki (Wiki.js)
           
           Next steps:
           1. Verify services at their configured ports
@@ -544,7 +678,7 @@ jobs:
 
   notify-failure:
     name: Notify deployment failure
-    needs: [validate, preflight, deploy-observability, deploy-core, deploy-llm, verify]
+    needs: [validate, preflight, deploy-observability, deploy-core, deploy-llm, deploy-wiki, verify]
     runs-on: ubuntu-latest
     if: failure()
 

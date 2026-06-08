@@ -1,4 +1,4 @@
-.PHONY: compose-validate ansible-check core-up core-up-tailscale core-down core-logs llm-up llm-down llm-logs
+.PHONY: compose-validate ansible-check core-up core-up-tailscale core-down core-logs llm-up llm-down llm-logs wiki-up wiki-down wiki-logs
 
 ansible-check:
 	./tests/ansible/check.sh
@@ -26,3 +26,13 @@ llm-down:
 
 llm-logs:
 	./ops/scripts/local/logs-llm.sh
+
+wiki-up:
+	docker network inspect infra_shared_backend >/dev/null 2>&1 || docker network create infra_shared_backend
+	docker compose --env-file compose/env/wiki.env.example -f compose/projects/wiki/compose.yml -f compose/projects/wiki/compose.dev.yml up -d
+
+wiki-down:
+	docker compose --env-file compose/env/wiki.env.example -f compose/projects/wiki/compose.yml -f compose/projects/wiki/compose.dev.yml down
+
+wiki-logs:
+	docker compose --env-file compose/env/wiki.env.example -f compose/projects/wiki/compose.yml -f compose/projects/wiki/compose.dev.yml logs -f

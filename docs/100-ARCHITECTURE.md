@@ -76,7 +76,7 @@ Components:
 
 ```text
 nginx-private    private HTTP edge
-nginx-public     public edge placeholder
+nginx-public     public HTTP/TLS edge
 seaweedfs        S3-compatible object storage
 postgres         durable registry database
 redis            durable event stream
@@ -93,8 +93,28 @@ Inputs:
 Outputs:
 
 - private service endpoints for consumer repositories
+- public service endpoints for approved public services
 - persistent runtime data
 - event and registry state used by downstream systems
+
+### Wiki Stack
+
+The `wiki` stack owns public Wiki.js documentation.
+
+```text
+compose/projects/wiki/
+```
+
+Components:
+
+```text
+wiki            Wiki.js application
+wiki-database   Wiki.js Postgres database
+```
+
+The `wiki` service joins `infra_shared_backend` so `nginx-public` can proxy
+the public docs hostname to `wiki:3000`. The database remains on the internal
+`wiki_backend` network.
 
 ### Observability Stack
 
@@ -194,9 +214,10 @@ Responsibilities:
 ### Internal Boundaries
 
 ```text
-core            shared runtime services for consumers
+core            shared runtime services and edge routing
 observability   monitoring and logging services
 llm             LLM gateway, key management, tracing, and cost audit
+wiki            public documentation runtime
 ansible         host orchestration and deployment
 ops             validation and runtime support tooling
 docs            repository documentation hubs and nodes

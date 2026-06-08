@@ -8,8 +8,9 @@ Este repo no contiene la app. Provee la base compartida usada por otros reposito
 - estado durable de papers en Postgres
 - eventos live en Redis
 - DNS privado con CoreDNS
-- edge privado con NGINX
+- edge privado y publico con NGINX
 - observabilidad con Prometheus y Loki
+- documentacion publica con Wiki.js
 - deploy con Ansible y GitHub Actions
 
 [Read in English](../README.md)
@@ -30,6 +31,7 @@ Stacks:
 core            nginx, seaweedfs, postgres, redis, etcd, coredns
 observability   prometheus, loki
 llm             LiteLLM, Langfuse, Postgres
+wiki            Wiki.js, Postgres
 ```
 
 ## Uso Local

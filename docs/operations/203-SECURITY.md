@@ -24,10 +24,53 @@ files, and pre-push checks.
 - LiteLLM and Langfuse are not published directly in production; access goes
   through private NGINX on the Tailscale interface.
 
+## Infisical Layout
+
+Production runtime secrets are grouped by consumer. Keep variable names as
+listed; only move them into the scoped folders.
+
+```text
+/Hetzner-Server/global
+  PROD_HOST
+  PROD_SSH_PRIVATE_KEY
+  PROD_SSH_USER
+  PROD_SSH_PORT
+  PROD_SSH_KNOWN_HOSTS
+  TAILSCALE_IPV4
+
+/Hetzner-Server/core
+  SEAWEED_S3_ACCESS_KEY
+  SEAWEED_S3_SECRET_KEY
+  POSTGRES_PASSWORD
+  REDIS_PASSWORD
+
+/Hetzner-Server/llm
+  LLM_POSTGRES_PASSWORD
+  LITELLM_DB_PASSWORD
+  LITELLM_MASTER_KEY
+  LITELLM_SALT_KEY
+  LITELLM_UI_PASSWORD
+  LITELLM_DEPLOYMENTS_JSON
+  LANGFUSE_DB_PASSWORD
+  LANGFUSE_NEXTAUTH_SECRET
+  LANGFUSE_SALT
+  LANGFUSE_ENCRYPTION_KEY
+  LANGFUSE_PUBLIC_KEY
+  LANGFUSE_SECRET_KEY
+
+/Hetzner-Server/wiki
+  WIKIJS_DB_PASSWORD
+
+/Hetzner-Server/api-keys
+  KEY_*
+```
+
+`GRAFANA_ADMIN_PASSWORD` is not consumed by the current observability stack.
+Keep it out of active deploy paths until Grafana is added to this repository.
+
 ## Required Production Secrets
 
-Production runtime secrets live in the Infisical path configured by
-`INFISICAL_SECRET_PATH`, currently `Hetzner-Server`.
+The active deploy requires:
 
 ```text
 PROD_HOST
@@ -49,6 +92,7 @@ LANGFUSE_SALT
 LANGFUSE_ENCRYPTION_KEY
 LANGFUSE_PUBLIC_KEY
 LANGFUSE_SECRET_KEY
+WIKIJS_DB_PASSWORD
 ```
 
 LiteLLM provider keys must be stored in Infisical with the `KEY_` prefix:
@@ -79,6 +123,7 @@ Production runtime secret files live under:
 /srv/secrets/runtime/seaweed-s3.json
 /srv/secrets/runtime/observability.env
 /srv/secrets/runtime/llm.env
+/srv/secrets/runtime/wiki.env
 ```
 
 The production LiteLLM config is generated at deploy time:

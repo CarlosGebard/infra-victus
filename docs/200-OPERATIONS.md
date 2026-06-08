@@ -39,6 +39,7 @@ Operational responsibilities include:
 - starting and inspecting local infrastructure stacks.
 - deploying `observability` and `core` to the VPS.
 - deploying `llm` when LiteLLM and Langfuse services are used.
+- deploying `wiki` when public Wiki.js documentation is used.
 - keeping runtime secrets outside git.
 - recovering from common service, storage, and event failures.
 
@@ -99,6 +100,10 @@ through Docker Compose when validating runtime behavior.
 
 The `llm` stack provides LiteLLM key management and Langfuse LLM tracing.
 LiteLLM listens on `4000`; Langfuse listens on host port `3001`; Postgres is internal.
+
+The `wiki` stack provides Wiki.js. It is published through `nginx-public` at
+the configured public docs hostname and does not publish production host ports
+directly.
 
 ## Failure And Recovery
 

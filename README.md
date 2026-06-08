@@ -8,8 +8,9 @@ This repository does not contain the application. It provides the shared runtime
 - durable paper state in Postgres
 - live events in Redis
 - private DNS with CoreDNS
-- private edge routing with NGINX
+- private and public edge routing with NGINX
 - observability with Grafana, Prometheus, and Loki
+- public documentation with Wiki.js
 - deployment with Ansible and GitHub Actions
 
 [Leer en español](docs/README.es.md)
@@ -30,6 +31,7 @@ Stacks:
 core            nginx, seaweedfs, postgres, redis, etcd, coredns
 observability   grafana, prometheus, loki
 llm             LiteLLM, Langfuse, Postgres
+wiki            Wiki.js, Postgres
 ```
 
 ## Local Use

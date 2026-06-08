@@ -26,16 +26,18 @@ The workflow deploys stacks in order:
 
 ```text
 observability -> core -> llm
+                    \-> wiki
 ```
 
 The `observability` stack is deployed first so monitoring is available before
-the core stack is rolled out. The `llm` stack is deployed after core so the
-shared Docker network is already present.
+the core stack is rolled out. The `llm` and `wiki` stacks are deployed after
+core so the shared Docker network and edge routing are already present.
 
 Internal job order:
 
 ```text
 validate -> preflight -> deploy-observability -> deploy-core -> deploy-llm -> verify
+                                                   \-> deploy-wiki -/
 ```
 
 ## Trigger
@@ -57,10 +59,13 @@ git_ref    branch, tag, or commit to deploy
 Production secrets come from Infisical through GitHub OIDC. Secrets are not
 stored in git or GitHub repository secrets.
 
-The deploy workflow reads two Infisical paths:
+The deploy workflow reads scoped Infisical paths:
 
 ```text
-Hetzner-Server   runtime infrastructure secrets and LiteLLM routing metadata
+/Hetzner-Server/global     host access and shared deploy secrets
+/Hetzner-Server/core       core stack runtime secrets
+/Hetzner-Server/llm        LiteLLM and Langfuse runtime secrets
+/Hetzner-Server/wiki       Wiki.js runtime secrets
 /Hetzner-Server/api-keys   provider API keys named KEY_*
 ```
 
@@ -109,6 +114,8 @@ prometheus
 llm-postgres
 litellm
 langfuse
+wikijs
+wikijs-postgres
 ```
 
 LLM service endpoints:
@@ -122,6 +129,24 @@ Postgres   internal Docker network only
 The `llm` deploy does not publish LiteLLM or Langfuse service ports directly.
 Private NGINX binds to `TAILSCALE_IPV4` and proxies to the services over
 `infra_shared_backend`.
+
+Wiki.js is published through `nginx-public` and proxies to `wiki:3000` over
+`infra_shared_backend`. The default production hostname is:
+
+```text
+https://wiki.victus.fit
+```
+
+If `nginx-private` also binds port `80`, set `NGINX_PUBLIC_BIND_IP` to the
+host public IPv4 in `CORE_RUNTIME_ENV` so public and private NGINX do not
+compete for the same host socket.
+
+To preserve an existing Wiki.js database from the previous media stack, set
+this in `WIKI_RUNTIME_ENV` before deploy:
+
+```text
+WIKIJS_DB_DATA_LOCATION=/srv/data/media/wiki/postgres
+```
 
 After the first Langfuse login, create a Langfuse project, generate API keys,
 update `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` in Infisical, and

@@ -78,3 +78,16 @@ networking:
         redirect_to_https: false
       https:
         enabled: false
+
+    - name: wiki
+      domains:
+        - wiki.victus.fit
+      upstream: wiki:3000
+      exposure: public
+      access_policy: public
+      preserve_host: true
+      http:
+        enabled: true
+        redirect_to_https: true
+      https:
+        enabled: true
