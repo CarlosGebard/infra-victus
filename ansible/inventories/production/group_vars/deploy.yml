@@ -34,7 +34,7 @@ deploy:
       - { path: "{{ srv_apps_root }}/core/db/migrations", mode: "0755" }
       - { path: "{{ srv_apps_root }}/core/db/migrations/versions", mode: "0755" }
       - { path: "{{ srv_data_root }}/etcd/core-dns", mode: "0755" }
-      - { path: "{{ srv_data_root }}/postgres/victus-registry", mode: "0750" }
+      - { path: "{{ srv_data_root }}/postgres/victus-registry", owner: "70", group: "70", mode: "0700" }
       - { path: "{{ srv_data_root }}/redis", mode: "0750" }
     staged_secret_files:
       - source_file: "{{ lookup('ansible.builtin.env', 'CORE_RUNTIME_ENV_SOURCE_FILE') | default('', true) }}"
@@ -146,7 +146,7 @@ deploy:
     directories:
       - { path: "{{ srv_apps_root }}/llm/litellm", mode: "0755" }
       - { path: "{{ srv_apps_root }}/llm/llm-postgres/init", mode: "0755" }
-      - { path: "{{ srv_data_root }}/llm/postgres", mode: "0750" }
+      - { path: "{{ srv_data_root }}/llm/postgres", owner: "70", group: "70", mode: "0700" }
     staged_secret_files:
       - source_file: "{{ lookup('ansible.builtin.env', 'LLM_RUNTIME_ENV_SOURCE_FILE') | default('', true) }}"
         dest: "{{ srv_secrets_root }}/runtime/llm.env"
@@ -181,7 +181,7 @@ deploy:
       - wiki
       - wiki-database
     directories:
-      - { path: "{{ srv_data_root }}/wiki/postgres", mode: "0750" }
+      - { path: "{{ srv_data_root }}/wiki/postgres", owner: "70", group: "70", mode: "0700" }
     staged_secret_files:
       - source_file: "{{ lookup('ansible.builtin.env', 'WIKI_RUNTIME_ENV_SOURCE_FILE') | default('', true) }}"
         dest: "{{ srv_secrets_root }}/runtime/wiki.env"
