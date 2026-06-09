@@ -72,9 +72,11 @@ The deploy workflow reads scoped Infisical paths:
 Required secrets are listed in [security.md](security.md).
 
 The deployment workflow pulls secrets from Infisical, validates host readiness
-with Ansible, materializes stack runtime files in the runner, packages each
-stack into a small archive, copies the archive to the host over SSH, and runs
-`docker compose up -d --remove-orphans` remotely in dependency order.
+with Ansible, materializes stack runtime files in the runner, and passes those
+files to repository-owned Ansible playbooks. Ansible is the deployment source of
+truth for copying Compose files, staging runtime secrets, managing firewall
+rules, rendering NGINX config, obtaining TLS certificates, and running Docker
+Compose in dependency order.
 
 ## Validation
 

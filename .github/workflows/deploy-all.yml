@@ -262,13 +262,21 @@ jobs:
           env-slug: "${{ vars.INFISICAL_ENV_SLUG }}"
           secret-path: "${{ env.INFISICAL_GLOBAL_SECRET_PATH }}"
 
-      - name: Prepare SSH
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Ansible
+        run: python -m pip install --upgrade pip ansible-core
+
+      - name: Prepare deploy context
+        uses: ./.github/actions/prepare-deploy-context
         env:
           PROD_HOST: ${{ env.PROD_HOST }}
           PROD_SSH_KNOWN_HOSTS: ${{ env.PROD_SSH_KNOWN_HOSTS }}
           PROD_SSH_PORT: ${{ env.PROD_SSH_PORT }}
           PROD_SSH_PRIVATE_KEY: ${{ env.PROD_SSH_PRIVATE_KEY }}
-        run: bash .github/scripts/prepare-ssh.sh
 
       - name: Materialize observability runtime env
         run: |
@@ -290,10 +298,15 @@ jobs:
 
       - name: Deploy observability
         env:
-          PROD_HOST: ${{ env.PROD_HOST }}
-          PROD_SSH_PORT: ${{ env.PROD_SSH_PORT }}
-          DEPLOY_SSH_USER: ${{ env.PROD_SSH_USER || 'carlos' }}
-        run: bash .github/scripts/deploy-observability-fast.sh
+          ANSIBLE_HOST_KEY_CHECKING: "true"
+          OBSERVABILITY_RUNTIME_ENV_SOURCE_FILE: /tmp/observability-runtime.env
+        run: |
+          set -euo pipefail
+
+          cd ansible
+          ansible-playbook \
+            -i /tmp/deploy-hosts.yml \
+            playbooks/deploy-observability.yml
 
   deploy-core:
     name: Deploy Core Stack
@@ -329,13 +342,21 @@ jobs:
           env-slug: "${{ vars.INFISICAL_ENV_SLUG }}"
           secret-path: "${{ env.INFISICAL_CORE_SECRET_PATH }}"
 
-      - name: Prepare SSH
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Ansible
+        run: python -m pip install --upgrade pip ansible-core
+
+      - name: Prepare deploy context
+        uses: ./.github/actions/prepare-deploy-context
         env:
           PROD_HOST: ${{ env.PROD_HOST }}
           PROD_SSH_KNOWN_HOSTS: ${{ env.PROD_SSH_KNOWN_HOSTS }}
           PROD_SSH_PORT: ${{ env.PROD_SSH_PORT }}
           PROD_SSH_PRIVATE_KEY: ${{ env.PROD_SSH_PRIVATE_KEY }}
-        run: bash .github/scripts/prepare-ssh.sh
 
       - name: Materialize core runtime env
         env:
@@ -402,10 +423,16 @@ jobs:
 
       - name: Deploy core
         env:
-          PROD_HOST: ${{ env.PROD_HOST }}
-          PROD_SSH_PORT: ${{ env.PROD_SSH_PORT }}
-          DEPLOY_SSH_USER: ${{ env.PROD_SSH_USER || 'carlos' }}
-        run: bash .github/scripts/deploy-core-fast.sh
+          ANSIBLE_HOST_KEY_CHECKING: "true"
+          CORE_RUNTIME_ENV_SOURCE_FILE: /tmp/core-runtime.env
+          CORE_RUNTIME_SEAWEED_S3_SOURCE_FILE: /tmp/seaweed-s3.json
+        run: |
+          set -euo pipefail
+
+          cd ansible
+          ansible-playbook \
+            -i /tmp/deploy-hosts.yml \
+            playbooks/deploy.yml
 
   deploy-llm:
     name: Deploy LLM Stack
@@ -450,13 +477,21 @@ jobs:
           env-slug: "${{ vars.INFISICAL_ENV_SLUG }}"
           secret-path: "${{ env.INFISICAL_API_KEYS_SECRET_PATH }}"
 
-      - name: Prepare SSH
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Ansible
+        run: python -m pip install --upgrade pip ansible-core
+
+      - name: Prepare deploy context
+        uses: ./.github/actions/prepare-deploy-context
         env:
           PROD_HOST: ${{ env.PROD_HOST }}
           PROD_SSH_KNOWN_HOSTS: ${{ env.PROD_SSH_KNOWN_HOSTS }}
           PROD_SSH_PORT: ${{ env.PROD_SSH_PORT }}
           PROD_SSH_PRIVATE_KEY: ${{ env.PROD_SSH_PRIVATE_KEY }}
-        run: bash .github/scripts/prepare-ssh.sh
 
       - name: Materialize llm runtime env
         env:
@@ -517,10 +552,15 @@ jobs:
 
       - name: Deploy llm
         env:
-          PROD_HOST: ${{ env.PROD_HOST }}
-          PROD_SSH_PORT: ${{ env.PROD_SSH_PORT }}
-          DEPLOY_SSH_USER: ${{ env.PROD_SSH_USER || 'carlos' }}
-        run: bash .github/scripts/deploy-llm-fast.sh
+          ANSIBLE_HOST_KEY_CHECKING: "true"
+          LLM_RUNTIME_ENV_SOURCE_FILE: /tmp/llm-runtime.env
+        run: |
+          set -euo pipefail
+
+          cd ansible
+          ansible-playbook \
+            -i /tmp/deploy-hosts.yml \
+            playbooks/deploy-llm.yml
 
   deploy-wiki:
     name: Deploy Wiki.js Stack
@@ -556,13 +596,21 @@ jobs:
           env-slug: "${{ vars.INFISICAL_ENV_SLUG }}"
           secret-path: "${{ env.INFISICAL_WIKI_SECRET_PATH }}"
 
-      - name: Prepare SSH
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Ansible
+        run: python -m pip install --upgrade pip ansible-core
+
+      - name: Prepare deploy context
+        uses: ./.github/actions/prepare-deploy-context
         env:
           PROD_HOST: ${{ env.PROD_HOST }}
           PROD_SSH_KNOWN_HOSTS: ${{ env.PROD_SSH_KNOWN_HOSTS }}
           PROD_SSH_PORT: ${{ env.PROD_SSH_PORT }}
           PROD_SSH_PRIVATE_KEY: ${{ env.PROD_SSH_PRIVATE_KEY }}
-        run: bash .github/scripts/prepare-ssh.sh
 
       - name: Materialize wiki runtime env
         env:
@@ -594,10 +642,15 @@ jobs:
 
       - name: Deploy wiki
         env:
-          PROD_HOST: ${{ env.PROD_HOST }}
-          PROD_SSH_PORT: ${{ env.PROD_SSH_PORT }}
-          DEPLOY_SSH_USER: ${{ env.PROD_SSH_USER || 'carlos' }}
-        run: bash .github/scripts/deploy-wiki-fast.sh
+          ANSIBLE_HOST_KEY_CHECKING: "true"
+          WIKI_RUNTIME_ENV_SOURCE_FILE: /tmp/wiki-runtime.env
+        run: |
+          set -euo pipefail
+
+          cd ansible
+          ansible-playbook \
+            -i /tmp/deploy-hosts.yml \
+            playbooks/deploy-wiki.yml
 
   verify:
     name: Review deployed state
