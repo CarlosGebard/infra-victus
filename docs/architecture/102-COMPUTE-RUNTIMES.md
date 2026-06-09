@@ -27,6 +27,7 @@ stages configuration, and starts the Compose-defined stacks.
 core            shared runtime services
 observability   metrics, logs, and dashboards
 llm             LLM gateway, key management, tracing, and audit
+wiki            public Wiki.js documentation
 ```
 
 ## Runtime Modes
@@ -41,8 +42,11 @@ production   Compose base files plus prod overlays staged under /srv/apps
 Production deployment runs through GitHub Actions and Ansible:
 
 ```text
-validate -> preflight -> deploy-observability -> deploy-core -> deploy-llm -> verify
+validate -> deploy
 ```
+
+The `deploy` job runs preflight and stack playbooks sequentially so Python,
+Ansible, SSH, and Infisical setup happen once per deployment.
 
 ## Ownership Boundary
 

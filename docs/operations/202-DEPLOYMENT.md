@@ -36,8 +36,13 @@ core so the shared Docker network and edge routing are already present.
 Internal job order:
 
 ```text
-validate -> preflight -> deploy-observability -> deploy-core -> deploy-llm -> verify
-                                                   \-> deploy-wiki -/
+validate -> deploy -> notify
+```
+
+Inside the `deploy` job, Ansible runs stack playbooks in dependency order:
+
+```text
+preflight.yml -> deploy-observability.yml -> deploy.yml -> deploy-llm.yml -> deploy-wiki.yml -> review.yml
 ```
 
 ## Trigger

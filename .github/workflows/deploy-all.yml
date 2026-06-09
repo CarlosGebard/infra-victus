@@ -184,135 +184,11 @@ jobs:
 
           ops/scripts/runtime/render-litellm-config.py >/dev/null
 
-  preflight:
-    name: Check Host Ready
+  deploy:
+    name: Deploy All Stacks
     needs: validate
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-    environment: production
-    permissions:
-      contents: read
-      id-token: write
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v5
-        with:
-          ref: ${{ env.DEPLOY_GIT_REF }}
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Pull global secrets from Infisical
-        uses: Infisical/secrets-action@v1.0.10
-        with:
-          method: "oidc"
-          identity-id: "${{ vars.INFISICAL_IDENTITY_ID }}"
-          project-slug: "${{ vars.INFISICAL_PROJECT_SLUG }}"
-          env-slug: "${{ vars.INFISICAL_ENV_SLUG }}"
-          secret-path: "${{ env.INFISICAL_GLOBAL_SECRET_PATH }}"
-
-      - name: Install Ansible
-        run: python -m pip install --upgrade pip ansible-core
-
-      - name: Prepare deploy context
-        uses: ./.github/actions/prepare-deploy-context
-        env:
-          PROD_HOST: ${{ env.PROD_HOST }}
-          PROD_SSH_KNOWN_HOSTS: ${{ env.PROD_SSH_KNOWN_HOSTS }}
-          PROD_SSH_PORT: ${{ env.PROD_SSH_PORT }}
-          PROD_SSH_PRIVATE_KEY: ${{ env.PROD_SSH_PRIVATE_KEY }}
-
-      - name: Check host deploy prerequisites
-        env:
-          ANSIBLE_HOST_KEY_CHECKING: "true"
-        run: |
-          set -euo pipefail
-          
-          cd ansible
-          
-          ansible-playbook \
-            -i /tmp/deploy-hosts.yml \
-            playbooks/preflight.yml
-
-  deploy-observability:
-    name: Deploy Observability Stack
-    needs: preflight
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    environment: production
-    permissions:
-      contents: read
-      id-token: write
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v5
-        with:
-          ref: ${{ env.DEPLOY_GIT_REF }}
-
-      - name: Pull global secrets from Infisical
-        uses: Infisical/secrets-action@v1.0.10
-        with:
-          method: "oidc"
-          identity-id: "${{ vars.INFISICAL_IDENTITY_ID }}"
-          project-slug: "${{ vars.INFISICAL_PROJECT_SLUG }}"
-          env-slug: "${{ vars.INFISICAL_ENV_SLUG }}"
-          secret-path: "${{ env.INFISICAL_GLOBAL_SECRET_PATH }}"
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install Ansible
-        run: python -m pip install --upgrade pip ansible-core
-
-      - name: Prepare deploy context
-        uses: ./.github/actions/prepare-deploy-context
-        env:
-          PROD_HOST: ${{ env.PROD_HOST }}
-          PROD_SSH_KNOWN_HOSTS: ${{ env.PROD_SSH_KNOWN_HOSTS }}
-          PROD_SSH_PORT: ${{ env.PROD_SSH_PORT }}
-          PROD_SSH_PRIVATE_KEY: ${{ env.PROD_SSH_PRIVATE_KEY }}
-
-      - name: Materialize observability runtime env
-        run: |
-          set -euo pipefail
-          
-          printf '%s\n' \
-            'LOKI_BIND_IP=127.0.0.1' \
-            'LOKI_HTTP_PORT=3100' \
-            'PROMETHEUS_BIND_IP=127.0.0.1' \
-            'PROMETHEUS_HTTP_PORT=9090' \
-            > /tmp/observability-runtime.env
-          chmod 600 /tmp/observability-runtime.env
-
-      - name: Validate observability deploy files exist
-        run: |
-          set -euo pipefail
-          
-          [[ -f /tmp/observability-runtime.env ]] || { echo "✗ Missing /tmp/observability-runtime.env"; exit 1; }
-
-      - name: Deploy observability
-        env:
-          ANSIBLE_HOST_KEY_CHECKING: "true"
-          OBSERVABILITY_RUNTIME_ENV_SOURCE_FILE: /tmp/observability-runtime.env
-        run: |
-          set -euo pipefail
-
-          cd ansible
-          ansible-playbook \
-            -i /tmp/deploy-hosts.yml \
-            playbooks/deploy-observability.yml
-
-  deploy-core:
-    name: Deploy Core Stack
-    needs: [deploy-observability]
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 35
     environment: production
     permissions:
       contents: read
@@ -342,123 +218,6 @@ jobs:
           env-slug: "${{ vars.INFISICAL_ENV_SLUG }}"
           secret-path: "${{ env.INFISICAL_CORE_SECRET_PATH }}"
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install Ansible
-        run: python -m pip install --upgrade pip ansible-core
-
-      - name: Prepare deploy context
-        uses: ./.github/actions/prepare-deploy-context
-        env:
-          PROD_HOST: ${{ env.PROD_HOST }}
-          PROD_SSH_KNOWN_HOSTS: ${{ env.PROD_SSH_KNOWN_HOSTS }}
-          PROD_SSH_PORT: ${{ env.PROD_SSH_PORT }}
-          PROD_SSH_PRIVATE_KEY: ${{ env.PROD_SSH_PRIVATE_KEY }}
-
-      - name: Materialize core runtime env
-        env:
-          CORE_RUNTIME_ENV: ${{ vars.CORE_RUNTIME_ENV }}
-          SEAWEED_S3_ACCESS_KEY: ${{ env.SEAWEED_S3_ACCESS_KEY }}
-          SEAWEED_S3_SECRET_KEY: ${{ env.SEAWEED_S3_SECRET_KEY }}
-          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
-          REDIS_PASSWORD: ${{ env.REDIS_PASSWORD }}
-        run: |
-          set -euo pipefail
-          
-          if [[ -n "${CORE_RUNTIME_ENV:-}" ]]; then
-            printf '%s\n' "$CORE_RUNTIME_ENV" > /tmp/core-runtime.env
-          else
-            printf '%s\n' \
-              'NGINX_HTTP_PORT=80' \
-              > /tmp/core-runtime.env
-          fi
-
-          grep -Ev '^(POSTGRES_PASSWORD|REDIS_PASSWORD)=' /tmp/core-runtime.env > /tmp/core-runtime.env.next || true
-          printf 'POSTGRES_PASSWORD=%s\n' "${POSTGRES_PASSWORD}" >> /tmp/core-runtime.env.next
-          printf 'REDIS_PASSWORD=%s\n' "${REDIS_PASSWORD}" >> /tmp/core-runtime.env.next
-          mv /tmp/core-runtime.env.next /tmp/core-runtime.env
-
-          chmod 600 /tmp/core-runtime.env
-          
-          # Seaweed S3 credentials
-          printf '%s\n' \
-            '{' \
-            '  "identities": [' \
-            '    {' \
-            '      "name": "main",' \
-            '      "credentials": [' \
-            '        {' \
-            "          \"accessKey\": \"${SEAWEED_S3_ACCESS_KEY}\"," \
-            "          \"secretKey\": \"${SEAWEED_S3_SECRET_KEY}\"" \
-            '        }' \
-            '      ],' \
-            '      "actions": [' \
-            '        "Admin",' \
-            '        "Read",' \
-            '        "Tagging",' \
-            '        "Write",' \
-            '        "List"' \
-            '      ]' \
-            '    }' \
-            '  ]' \
-            '}' \
-            > /tmp/seaweed-s3.json
-          chmod 600 /tmp/seaweed-s3.json
-
-      - name: Validate core deploy files exist
-        run: |
-          set -euo pipefail
-          
-          echo "Checking required files for core deployment..."
-          [[ -f /tmp/core-runtime.env ]] || { echo "✗ Missing /tmp/core-runtime.env"; exit 1; }
-          [[ -f /tmp/seaweed-s3.json ]] || { echo "✗ Missing /tmp/seaweed-s3.json"; exit 1; }
-
-          nginx_http_port="$(grep '^NGINX_HTTP_PORT=' /tmp/core-runtime.env | cut -d= -f2- || true)"
-          [[ "${nginx_http_port}" == "80" ]] || { echo "✗ NGINX_HTTP_PORT must be 80"; exit 1; }
-          
-          echo "✓ All files present"
-
-      - name: Deploy core
-        env:
-          ANSIBLE_HOST_KEY_CHECKING: "true"
-          CORE_RUNTIME_ENV_SOURCE_FILE: /tmp/core-runtime.env
-          CORE_RUNTIME_SEAWEED_S3_SOURCE_FILE: /tmp/seaweed-s3.json
-        run: |
-          set -euo pipefail
-
-          cd ansible
-          ansible-playbook \
-            -i /tmp/deploy-hosts.yml \
-            playbooks/deploy.yml
-
-  deploy-llm:
-    name: Deploy LLM Stack
-    needs: [deploy-core]
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    environment: production
-    permissions:
-      contents: read
-      id-token: write
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v5
-        with:
-          ref: ${{ env.DEPLOY_GIT_REF }}
-
-      - name: Pull global secrets from Infisical
-        uses: Infisical/secrets-action@v1.0.10
-        with:
-          method: "oidc"
-          identity-id: "${{ vars.INFISICAL_IDENTITY_ID }}"
-          project-slug: "${{ vars.INFISICAL_PROJECT_SLUG }}"
-          env-slug: "${{ vars.INFISICAL_ENV_SLUG }}"
-          secret-path: "${{ env.INFISICAL_GLOBAL_SECRET_PATH }}"
-
       - name: Pull llm secrets from Infisical
         uses: Infisical/secrets-action@v1.0.10
         with:
@@ -467,6 +226,15 @@ jobs:
           project-slug: "${{ vars.INFISICAL_PROJECT_SLUG }}"
           env-slug: "${{ vars.INFISICAL_ENV_SLUG }}"
           secret-path: "${{ env.INFISICAL_LLM_SECRET_PATH }}"
+
+      - name: Pull wiki secrets from Infisical
+        uses: Infisical/secrets-action@v1.0.10
+        with:
+          method: "oidc"
+          identity-id: "${{ vars.INFISICAL_IDENTITY_ID }}"
+          project-slug: "${{ vars.INFISICAL_PROJECT_SLUG }}"
+          env-slug: "${{ vars.INFISICAL_ENV_SLUG }}"
+          secret-path: "${{ env.INFISICAL_WIKI_SECRET_PATH }}"
 
       - name: Pull API keys from Infisical
         uses: Infisical/secrets-action@v1.0.10
@@ -493,8 +261,22 @@ jobs:
           PROD_SSH_PORT: ${{ env.PROD_SSH_PORT }}
           PROD_SSH_PRIVATE_KEY: ${{ env.PROD_SSH_PRIVATE_KEY }}
 
-      - name: Materialize llm runtime env
+      - name: Check host deploy prerequisites
         env:
+          ANSIBLE_HOST_KEY_CHECKING: "true"
+        run: |
+          set -euo pipefail
+
+          cd ansible
+          ansible-playbook -i /tmp/deploy-hosts.yml playbooks/preflight.yml
+
+      - name: Materialize runtime env files
+        env:
+          CORE_RUNTIME_ENV: ${{ vars.CORE_RUNTIME_ENV }}
+          SEAWEED_S3_ACCESS_KEY: ${{ env.SEAWEED_S3_ACCESS_KEY }}
+          SEAWEED_S3_SECRET_KEY: ${{ env.SEAWEED_S3_SECRET_KEY }}
+          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+          REDIS_PASSWORD: ${{ env.REDIS_PASSWORD }}
           LLM_POSTGRES_PASSWORD: ${{ env.LLM_POSTGRES_PASSWORD }}
           LITELLM_DB_PASSWORD: ${{ env.LITELLM_DB_PASSWORD }}
           LITELLM_MASTER_KEY: ${{ env.LITELLM_MASTER_KEY }}
@@ -507,8 +289,56 @@ jobs:
           LANGFUSE_ENCRYPTION_KEY: ${{ env.LANGFUSE_ENCRYPTION_KEY }}
           LANGFUSE_PUBLIC_KEY: ${{ env.LANGFUSE_PUBLIC_KEY }}
           LANGFUSE_SECRET_KEY: ${{ env.LANGFUSE_SECRET_KEY }}
+          WIKI_RUNTIME_ENV: ${{ vars.WIKI_RUNTIME_ENV }}
+          WIKIJS_DB_PASSWORD: ${{ env.WIKIJS_DB_PASSWORD }}
         run: |
           set -euo pipefail
+
+          printf '%s\n' \
+            'LOKI_BIND_IP=127.0.0.1' \
+            'LOKI_HTTP_PORT=3100' \
+            'PROMETHEUS_BIND_IP=127.0.0.1' \
+            'PROMETHEUS_HTTP_PORT=9090' \
+            > /tmp/observability-runtime.env
+          chmod 600 /tmp/observability-runtime.env
+
+          if [[ -n "${CORE_RUNTIME_ENV:-}" ]]; then
+            printf '%s\n' "$CORE_RUNTIME_ENV" > /tmp/core-runtime.env
+          else
+            printf '%s\n' \
+              'NGINX_HTTP_PORT=80' \
+              > /tmp/core-runtime.env
+          fi
+
+          grep -Ev '^(POSTGRES_PASSWORD|REDIS_PASSWORD)=' /tmp/core-runtime.env > /tmp/core-runtime.env.next || true
+          printf 'POSTGRES_PASSWORD=%s\n' "${POSTGRES_PASSWORD}" >> /tmp/core-runtime.env.next
+          printf 'REDIS_PASSWORD=%s\n' "${REDIS_PASSWORD}" >> /tmp/core-runtime.env.next
+          mv /tmp/core-runtime.env.next /tmp/core-runtime.env
+          chmod 600 /tmp/core-runtime.env
+
+          printf '%s\n' \
+            '{' \
+            '  "identities": [' \
+            '    {' \
+            '      "name": "main",' \
+            '      "credentials": [' \
+            '        {' \
+            "          \"accessKey\": \"${SEAWEED_S3_ACCESS_KEY}\"," \
+            "          \"secretKey\": \"${SEAWEED_S3_SECRET_KEY}\"" \
+            '        }' \
+            '      ],' \
+            '      "actions": [' \
+            '        "Admin",' \
+            '        "Read",' \
+            '        "Tagging",' \
+            '        "Write",' \
+            '        "List"' \
+            '      ]' \
+            '    }' \
+            '  ]' \
+            '}' \
+            > /tmp/seaweed-s3.json
+          chmod 600 /tmp/seaweed-s3.json
 
           litellm_deployments_json="$(python3 -c 'import json, os; print(json.dumps(json.loads(os.environ["LITELLM_DEPLOYMENTS_JSON"]), separators=(",", ":")))')"
 
@@ -544,81 +374,6 @@ jobs:
           done
           chmod 600 /tmp/llm-runtime.env
 
-      - name: Validate llm deploy files exist
-        run: |
-          set -euo pipefail
-
-          [[ -f /tmp/llm-runtime.env ]] || { echo "✗ Missing /tmp/llm-runtime.env"; exit 1; }
-
-      - name: Deploy llm
-        env:
-          ANSIBLE_HOST_KEY_CHECKING: "true"
-          LLM_RUNTIME_ENV_SOURCE_FILE: /tmp/llm-runtime.env
-        run: |
-          set -euo pipefail
-
-          cd ansible
-          ansible-playbook \
-            -i /tmp/deploy-hosts.yml \
-            playbooks/deploy-llm.yml
-
-  deploy-wiki:
-    name: Deploy Wiki.js Stack
-    needs: [deploy-core]
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    environment: production
-    permissions:
-      contents: read
-      id-token: write
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v5
-        with:
-          ref: ${{ env.DEPLOY_GIT_REF }}
-
-      - name: Pull global secrets from Infisical
-        uses: Infisical/secrets-action@v1.0.10
-        with:
-          method: "oidc"
-          identity-id: "${{ vars.INFISICAL_IDENTITY_ID }}"
-          project-slug: "${{ vars.INFISICAL_PROJECT_SLUG }}"
-          env-slug: "${{ vars.INFISICAL_ENV_SLUG }}"
-          secret-path: "${{ env.INFISICAL_GLOBAL_SECRET_PATH }}"
-
-      - name: Pull wiki secrets from Infisical
-        uses: Infisical/secrets-action@v1.0.10
-        with:
-          method: "oidc"
-          identity-id: "${{ vars.INFISICAL_IDENTITY_ID }}"
-          project-slug: "${{ vars.INFISICAL_PROJECT_SLUG }}"
-          env-slug: "${{ vars.INFISICAL_ENV_SLUG }}"
-          secret-path: "${{ env.INFISICAL_WIKI_SECRET_PATH }}"
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install Ansible
-        run: python -m pip install --upgrade pip ansible-core
-
-      - name: Prepare deploy context
-        uses: ./.github/actions/prepare-deploy-context
-        env:
-          PROD_HOST: ${{ env.PROD_HOST }}
-          PROD_SSH_KNOWN_HOSTS: ${{ env.PROD_SSH_KNOWN_HOSTS }}
-          PROD_SSH_PORT: ${{ env.PROD_SSH_PORT }}
-          PROD_SSH_PRIVATE_KEY: ${{ env.PROD_SSH_PRIVATE_KEY }}
-
-      - name: Materialize wiki runtime env
-        env:
-          WIKI_RUNTIME_ENV: ${{ vars.WIKI_RUNTIME_ENV }}
-          WIKIJS_DB_PASSWORD: ${{ env.WIKIJS_DB_PASSWORD }}
-        run: |
-          set -euo pipefail
-
           if [[ -n "${WIKI_RUNTIME_ENV:-}" ]]; then
             printf '%s\n' "$WIKI_RUNTIME_ENV" > /tmp/wiki-runtime.env
           else
@@ -634,80 +389,40 @@ jobs:
           mv /tmp/wiki-runtime.env.next /tmp/wiki-runtime.env
           chmod 600 /tmp/wiki-runtime.env
 
-      - name: Validate wiki deploy files exist
+      - name: Validate materialized runtime files
         run: |
           set -euo pipefail
 
+          [[ -f /tmp/observability-runtime.env ]] || { echo "✗ Missing /tmp/observability-runtime.env"; exit 1; }
+          [[ -f /tmp/core-runtime.env ]] || { echo "✗ Missing /tmp/core-runtime.env"; exit 1; }
+          [[ -f /tmp/seaweed-s3.json ]] || { echo "✗ Missing /tmp/seaweed-s3.json"; exit 1; }
+          [[ -f /tmp/llm-runtime.env ]] || { echo "✗ Missing /tmp/llm-runtime.env"; exit 1; }
           [[ -f /tmp/wiki-runtime.env ]] || { echo "✗ Missing /tmp/wiki-runtime.env"; exit 1; }
 
-      - name: Deploy wiki
+          nginx_http_port="$(grep '^NGINX_HTTP_PORT=' /tmp/core-runtime.env | cut -d= -f2- || true)"
+          [[ "${nginx_http_port}" == "80" ]] || { echo "✗ NGINX_HTTP_PORT must be 80"; exit 1; }
+
+      - name: Deploy and review stacks
         env:
           ANSIBLE_HOST_KEY_CHECKING: "true"
+          OBSERVABILITY_RUNTIME_ENV_SOURCE_FILE: /tmp/observability-runtime.env
+          CORE_RUNTIME_ENV_SOURCE_FILE: /tmp/core-runtime.env
+          CORE_RUNTIME_SEAWEED_S3_SOURCE_FILE: /tmp/seaweed-s3.json
+          LLM_RUNTIME_ENV_SOURCE_FILE: /tmp/llm-runtime.env
           WIKI_RUNTIME_ENV_SOURCE_FILE: /tmp/wiki-runtime.env
         run: |
           set -euo pipefail
 
           cd ansible
-          ansible-playbook \
-            -i /tmp/deploy-hosts.yml \
-            playbooks/deploy-wiki.yml
-
-  verify:
-    name: Review deployed state
-    needs: [deploy-llm, deploy-wiki]
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    environment: production
-    permissions:
-      contents: read
-      id-token: write
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v5
-        with:
-          ref: ${{ env.DEPLOY_GIT_REF }}
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install Ansible
-        run: python -m pip install --upgrade pip ansible-core
-
-      - name: Pull global secrets from Infisical
-        uses: Infisical/secrets-action@v1.0.10
-        with:
-          method: "oidc"
-          identity-id: "${{ vars.INFISICAL_IDENTITY_ID }}"
-          project-slug: "${{ vars.INFISICAL_PROJECT_SLUG }}"
-          env-slug: "${{ vars.INFISICAL_ENV_SLUG }}"
-          secret-path: "${{ env.INFISICAL_GLOBAL_SECRET_PATH }}"
-
-      - name: Prepare deploy context
-        uses: ./.github/actions/prepare-deploy-context
-        env:
-          PROD_HOST: ${{ env.PROD_HOST }}
-          PROD_SSH_PRIVATE_KEY: ${{ env.PROD_SSH_PRIVATE_KEY }}
-          PROD_SSH_PORT: ${{ env.PROD_SSH_PORT }}
-          PROD_SSH_KNOWN_HOSTS: ${{ env.PROD_SSH_KNOWN_HOSTS }}
-
-      - name: Review deployed state
-        env:
-          ANSIBLE_HOST_KEY_CHECKING: "true"
-        run: |
-          set -euo pipefail
-
-          cd ansible
-
-          ansible-playbook \
-            -i /tmp/deploy-hosts.yml \
-            playbooks/review.yml
+          ansible-playbook -i /tmp/deploy-hosts.yml playbooks/deploy-observability.yml
+          ansible-playbook -i /tmp/deploy-hosts.yml playbooks/deploy.yml
+          ansible-playbook -i /tmp/deploy-hosts.yml playbooks/deploy-llm.yml
+          ansible-playbook -i /tmp/deploy-hosts.yml playbooks/deploy-wiki.yml
+          ansible-playbook -i /tmp/deploy-hosts.yml playbooks/review.yml
 
   notify-success:
     name: Notify deployment success
-    needs: [verify]
+    needs: [deploy]
     runs-on: ubuntu-latest
     if: success()
 
@@ -731,7 +446,7 @@ jobs:
 
   notify-failure:
     name: Notify deployment failure
-    needs: [validate, preflight, deploy-observability, deploy-core, deploy-llm, deploy-wiki, verify]
+    needs: [validate, deploy]
     runs-on: ubuntu-latest
     if: failure()
 
