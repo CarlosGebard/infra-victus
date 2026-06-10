@@ -28,14 +28,13 @@ docker compose \
   exec redis sh -c 'redis-cli -a "$REDIS_PASSWORD" ping'
 ```
 
-## Local Postgres Missing `paper_registry`
+## Reset Local Pipeline Postgres
 
-If the local volume existed before the migration/init SQL was added, reset only
-the local Postgres data:
+To reset only the local pipeline Postgres data:
 
 ```bash
 make core-down
-rm -rf compose/.tmp/core/postgres
+rm -rf compose/.tmp/core/pipeline-postgres
 make core-up
 ```
 
@@ -44,14 +43,7 @@ Do not use this procedure in production.
 ## Missed Event Recovery
 
 Redis Streams are operational event transport. Consumers that need durable
-truth should query Postgres.
-
-```sql
-select *
-from paper_registry
-where status_proc = 'completed'
-  and status_rag in ('pending', 'error');
-```
+truth should query the schema owned by the pipeline application repository.
 
 ## Deployment Validation Fails
 
@@ -105,4 +97,3 @@ cd /srv/<stack>
 docker compose down
 docker compose up -d
 ```
-

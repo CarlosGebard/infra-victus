@@ -20,7 +20,7 @@ deploy:
       - seaweedfs
       - etcd
       - coredns
-      - postgres
+      - pipeline-postgres
       - redis
     directories:
       - { path: "{{ srv_apps_root }}/core/nginx/private/conf.d", mode: "0755" }
@@ -30,11 +30,8 @@ deploy:
       - { path: "{{ srv_apps_root }}/core/coredns", mode: "0755" }
       - { path: "{{ srv_apps_root }}/core/scripts", mode: "0755" }
       - { path: "{{ srv_apps_root }}/core/seaweedfs", mode: "0755" }
-      - { path: "{{ srv_apps_root }}/core/db", mode: "0755" }
-      - { path: "{{ srv_apps_root }}/core/db/migrations", mode: "0755" }
-      - { path: "{{ srv_apps_root }}/core/db/migrations/versions", mode: "0755" }
       - { path: "{{ srv_data_root }}/etcd/core-dns", mode: "0755" }
-      - { path: "{{ srv_data_root }}/postgres/victus-registry", owner: "70", group: "70", mode: "0700" }
+      - { path: "{{ srv_data_root }}/pipeline/postgres", owner: "70", group: "70", mode: "0700" }
       - { path: "{{ srv_data_root }}/redis", mode: "0750" }
     staged_secret_files:
       - source_file: "{{ lookup('ansible.builtin.env', 'CORE_RUNTIME_ENV_SOURCE_FILE') | default('', true) }}"
@@ -44,7 +41,7 @@ deploy:
           - nginx-private
           - seaweedfs
           - coredns
-          - postgres
+          - pipeline-postgres
           - redis
       - source_file: "{{ lookup('ansible.builtin.env', 'CORE_RUNTIME_SEAWEED_S3_SOURCE_FILE') | default('', true) }}"
         dest: "{{ srv_secrets_root }}/runtime/seaweed-s3.json"
@@ -74,21 +71,8 @@ deploy:
       - src: "{{ playbook_dir }}/../../ops/scripts/runtime/apply-s3-buckets.py"
         dest: "{{ srv_apps_root }}/core/scripts/apply-s3-buckets.py"
         mode: "0755"
-      - src: "{{ playbook_dir }}/../../ops/scripts/runtime/apply-postgres-migrations.sh"
-        dest: "{{ srv_apps_root }}/core/scripts/apply-postgres-migrations.sh"
-        mode: "0755"
       - src: "{{ playbook_dir }}/../../compose/configs/seaweedfs/buckets.json"
         dest: "{{ srv_apps_root }}/core/seaweedfs/buckets.json"
-      - src: "{{ playbook_dir }}/../../ops/db/pyproject.toml"
-        dest: "{{ srv_apps_root }}/core/db/pyproject.toml"
-      - src: "{{ playbook_dir }}/../../ops/db/uv.lock"
-        dest: "{{ srv_apps_root }}/core/db/uv.lock"
-      - src: "{{ playbook_dir }}/../../ops/db/alembic.ini"
-        dest: "{{ srv_apps_root }}/core/db/alembic.ini"
-      - src: "{{ playbook_dir }}/../../ops/db/migrations/env.py"
-        dest: "{{ srv_apps_root }}/core/db/migrations/env.py"
-      - src: "{{ playbook_dir }}/../../ops/db/migrations/versions/0001_create_paper_registry.py"
-        dest: "{{ srv_apps_root }}/core/db/migrations/versions/0001_create_paper_registry.py"
 
   observability:
     name: observability

@@ -144,7 +144,7 @@ UV_PROJECT_ENVIRONMENT=/tmp/victus-bridge-uv-env uv run victus-ingest --help
 Expected local bridge variables:
 
 ```text
-VICTUS_PG_DSN=postgresql://victus:<password>@postgres:5432/victus_registry
+VICTUS_PG_DSN=postgresql://victus:<password>@pipeline-postgres:5432/victus_registry
 VICTUS_REDIS_URL=redis://:<password>@redis:6379/0
 VICTUS_S3_ENDPOINT=http://seaweedfs:8333
 VICTUS_S3_ACCESS_KEY=<access-key>
@@ -156,7 +156,7 @@ VICTUS_AWS_REGION=us-east-1
 Expected variables from other hosts in the private network:
 
 ```text
-VICTUS_PG_DSN=postgresql://victus:<password>@postgres.victus.io:5432/victus_registry
+VICTUS_PG_DSN=postgresql://victus:<password>@pipeline-postgres.victus.io:5432/victus_registry
 VICTUS_REDIS_URL=redis://:<password>@redis.victus.io:6379/0
 VICTUS_S3_ENDPOINT=http://s3.victus.io
 ```

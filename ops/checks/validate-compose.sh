@@ -103,21 +103,6 @@ validate_seaweed_s3_config() {
 	python3 -m py_compile "$ROOT_DIR/ops/scripts/runtime/apply-s3-buckets.py"
 }
 
-validate_postgres_config() {
-	local db_pyproject="$ROOT_DIR/ops/db/pyproject.toml"
-	local db_alembic="$ROOT_DIR/ops/db/alembic.ini"
-	local db_env="$ROOT_DIR/ops/db/migrations/env.py"
-	local db_revision="$ROOT_DIR/ops/db/migrations/versions/0001_create_paper_registry.py"
-	local db_migration_script="$ROOT_DIR/ops/scripts/runtime/apply-postgres-migrations.sh"
-
-	require_file "$db_pyproject"
-	require_file "$db_alembic"
-	require_file "$db_env"
-	require_file "$db_revision"
-	require_file "$db_migration_script"
-	python3 -m py_compile "$db_env" "$db_revision"
-}
-
 validate_litellm_config_renderer() {
 	local renderer="$ROOT_DIR/ops/scripts/runtime/render-litellm-config.py"
 
@@ -131,7 +116,7 @@ validate_required_dirs() {
 		"$ROOT_DIR/compose/.tmp/core/nginx-public/logs"
 		"$ROOT_DIR/compose/.tmp/core/seaweedfs/data"
 		"$ROOT_DIR/compose/.tmp/core/etcd/data"
-		"$ROOT_DIR/compose/.tmp/core/postgres/data"
+		"$ROOT_DIR/compose/.tmp/core/pipeline-postgres/data"
 		"$ROOT_DIR/compose/.tmp/core/redis/data"
 		"$ROOT_DIR/compose/.tmp/observability/loki"
 		"$ROOT_DIR/compose/.tmp/observability/prometheus"
@@ -154,7 +139,6 @@ validate_stack llm
 validate_stack wiki
 validate_required_dirs
 validate_seaweed_s3_config
-validate_postgres_config
 validate_litellm_config_renderer
 validate_nginx
 validate_coredns

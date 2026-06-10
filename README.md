@@ -28,7 +28,7 @@ tests/          Ansible validation
 Stacks:
 
 ```text
-core            nginx, seaweedfs, postgres, redis, etcd, coredns
+core            nginx, seaweedfs, pipeline-postgres, redis, etcd, coredns
 observability   grafana, prometheus, loki
 llm             LiteLLM, Langfuse, Postgres
 wiki            Wiki.js, Postgres

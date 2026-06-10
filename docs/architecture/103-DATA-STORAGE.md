@@ -10,7 +10,7 @@ related_docs:
   - ../300-CONTRACTS.md
 tags:
   - storage
-  - postgres
+  - pipeline-postgres
   - seaweedfs
   - redis
 ---
@@ -26,7 +26,7 @@ Docker volumes or host bind mounts.
 
 ```text
 SeaweedFS   S3-compatible object storage
-Postgres    durable registry database
+Postgres    durable pipeline database
 Redis       durable event stream
 etcd        CoreDNS backend state
 ```
@@ -34,7 +34,7 @@ etcd        CoreDNS backend state
 Production paths:
 
 ```text
-/srv/data/postgres/victus-registry
+/srv/data/pipeline/postgres
 /srv/data/redis
 /srv/data/etcd/core-dns
 ```

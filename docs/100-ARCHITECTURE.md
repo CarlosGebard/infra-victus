@@ -78,7 +78,7 @@ Components:
 nginx-private    private HTTP edge
 nginx-public     public HTTP/TLS edge
 seaweedfs        S3-compatible object storage
-postgres         durable registry database
+pipeline-postgres durable pipeline database
 redis            durable event stream
 etcd             CoreDNS backend state
 coredns          private DNS for victus.io

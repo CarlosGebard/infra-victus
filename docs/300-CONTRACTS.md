@@ -8,7 +8,7 @@ owners:
 related_components:
   - core
   - seaweedfs
-  - postgres
+  - pipeline-postgres
   - redis
   - coredns
 related_docs:
@@ -156,16 +156,16 @@ papers/{sha256_hash}/stages/04_claims/
 
 ### Invariants
 
-- `paper_registry.s3_prefix` must match `^papers/[^/]+/$`.
 - RAG-derived artifacts must not be written as source paper artifacts.
 - Source paper artifacts must not depend on consumer-specific storage layouts.
 - Temporary objects must not be treated as durable contract outputs.
 
-## Postgres Registry Contract
+## Pipeline Postgres Contract
 
 ### Scope
 
-Postgres stores durable shared registry state.
+`pipeline-postgres` provides the core Postgres runtime endpoint. Application
+schemas and table migrations are owned outside this repository.
 
 Database:
 
@@ -176,69 +176,18 @@ victus_registry
 Private DNS endpoint:
 
 ```text
-postgres.victus.io:5432
-```
-
-### Source Of Truth
-
-The schema source is:
-
-```text
-ops/db/migrations/versions/0001_create_paper_registry.py
-```
-
-### Table
-
-```text
-paper_registry
-```
-
-### Fields
-
-```text
-paper_id     text primary key
-doi          text null
-s3_prefix    text not null
-status_proc  paper_proc_status not null default pending
-status_rag   paper_rag_status not null default pending
-last_event   timestamptz not null default now()
-created_at   timestamptz not null default now()
-updated_at   timestamptz not null default now()
-```
-
-### Status Values
-
-`status_proc` values:
-
-```text
-pending
-processing
-completed
-failed
-```
-
-`status_rag` values:
-
-```text
-pending
-indexed
-error
+pipeline-postgres.victus.io:5432
 ```
 
 ### Guarantees
 
-- `paper_id` is the durable primary identifier for a paper registry row.
-- `s3_prefix` points to the paper-scoped storage prefix.
-- `created_at`, `updated_at`, and `last_event` are always present.
-- `updated_at` is refreshed by database trigger on row updates.
-- Status columns use database enum types, not free-form text.
+- This repository starts and exposes the Postgres service.
+- This repository does not apply application table migrations.
 
 ### Invariants
 
-- `paper_id` must remain stable after creation.
-- `s3_prefix` must remain non-null and match `^papers/[^/]+/$`.
-- Postgres remains the durable state anchor for paper lifecycle state.
-- Redis events must not be treated as the durable source of truth.
+- Service/container naming follows `domain-technology`: `pipeline-postgres`.
+- Schema ownership remains outside `victus-infra`.
 
 ## Redis Streams Event Contract
 
@@ -330,7 +279,7 @@ victus.io
 ```text
 s3.victus.io
 *.s3.victus.io
-postgres.victus.io
+pipeline-postgres.victus.io
 redis.victus.io
 litellm.victus.io
 langfuse.victus.io

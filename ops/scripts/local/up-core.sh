@@ -9,8 +9,6 @@ COMPOSE_OVERLAY="$ROOT_DIR/compose/projects/core/compose.dev.yml"
 S3_BUCKETS_SCRIPT="$ROOT_DIR/ops/scripts/runtime/apply-s3-buckets.py"
 S3_BUCKETS_CONTRACT="$ROOT_DIR/compose/configs/seaweedfs/buckets.json"
 SEAWEED_S3_CONFIG="$ROOT_DIR/compose/configs/seaweedfs/s3.json.example"
-DB_MIGRATIONS_SCRIPT="$ROOT_DIR/ops/scripts/runtime/apply-postgres-migrations.sh"
-DB_MIGRATIONS_DIR="$ROOT_DIR/ops/db"
 LOCAL_DNS_BIND="${LOCAL_DNS_BIND:-loopback}"
 COMPOSE_ARGS=()
 
@@ -64,7 +62,7 @@ COREDNS_DNS_PORT=$COREDNS_DNS_PORT
 NGINX_BIND_IP=$NGINX_BIND_IP
 NGINX_HTTP_PORT=$NGINX_HTTP_PORT
 S3_DOMAIN=${S3_DOMAIN:-s3.${DNS_ZONE:-victus.io}}
-POSTGRES_DOMAIN=${POSTGRES_DOMAIN:-postgres.${DNS_ZONE:-victus.io}}
+POSTGRES_DOMAIN=${POSTGRES_DOMAIN:-pipeline-postgres.${DNS_ZONE:-victus.io}}
 POSTGRES_BIND_IP=$POSTGRES_BIND_IP
 POSTGRES_PORT=${POSTGRES_PORT:-5432}
 REDIS_DOMAIN=${REDIS_DOMAIN:-redis.${DNS_ZONE:-victus.io}}
@@ -110,7 +108,7 @@ fi
 write_managed_env_block
 
 if [[ "$RECREATE_BOUND_SERVICES" -eq 1 ]]; then
-  docker compose --env-file "$ENV_FILE" -f "$COMPOSE_BASE" -f "$COMPOSE_OVERLAY" up -d --force-recreate nginx-private coredns postgres redis "${COMPOSE_ARGS[@]}"
+  docker compose --env-file "$ENV_FILE" -f "$COMPOSE_BASE" -f "$COMPOSE_OVERLAY" up -d --force-recreate nginx-private coredns pipeline-postgres redis "${COMPOSE_ARGS[@]}"
 else
   docker compose --env-file "$ENV_FILE" -f "$COMPOSE_BASE" -f "$COMPOSE_OVERLAY" up -d "${COMPOSE_ARGS[@]}"
 fi
@@ -118,12 +116,6 @@ fi
 CORE_ENV_FILE="$ENV_FILE" \
 CORE_COMPOSE_OVERLAY="$COMPOSE_OVERLAY" \
 "$ROOT_DIR/ops/scripts/runtime/sync-core-dns.sh"
-
-VICTUS_DB_MIGRATIONS_DIR="$DB_MIGRATIONS_DIR" \
-CORE_ENV_FILE="$ENV_FILE" \
-POSTGRES_HOST=postgres \
-DOCKER_NETWORK=core_core_backend \
-"$DB_MIGRATIONS_SCRIPT"
 
 docker run --rm \
   --network core_core_backend \
