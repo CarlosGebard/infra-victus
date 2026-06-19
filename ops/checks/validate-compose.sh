@@ -105,9 +105,29 @@ validate_seaweed_s3_config() {
 
 validate_litellm_config_renderer() {
 	local renderer="$ROOT_DIR/ops/scripts/runtime/render-litellm-config.py"
+	local env_file
+	local rendered_config
 
 	require_file "$renderer"
 	python3 -m py_compile "$renderer"
+
+	env_file="$(mktemp)"
+	rendered_config="$(mktemp)"
+	trap 'rm -f "$env_file" "$rendered_config"; trap - RETURN' RETURN
+
+	cat >"$env_file" <<'EOF'
+LITELLM_MASTER_KEY=sk-test
+KEY_GEMINI_FLASH_LITE_01=dummy-key-1
+KEY_GEMINI_FLASH_LITE_02=dummy-key-2
+LITELLM_DEPLOYMENTS_JSON=[{"model_name":"gemini-flash-lite","model":"gemini/gemini-3.1-flash-lite","api_key_env":"KEY_GEMINI_FLASH_LITE_01","rpm":15,"tpm":100000},{"model_name":"gemini-flash-lite","model":"gemini/gemini-3.1-flash-lite","api_key_env":"KEY_GEMINI_FLASH_LITE_02","rpm":15,"tpm":100000}]
+EOF
+
+	log "Validating LiteLLM multi-key routing render"
+	"$renderer" --env-file "$env_file" "$rendered_config"
+	[[ "$(grep -c 'model_name: "gemini-flash-lite"' "$rendered_config")" -eq 2 ]] || err "LiteLLM renderer did not emit two deployments for the shared model_name"
+	grep -q "api_key: os.environ/KEY_GEMINI_FLASH_LITE_01" "$rendered_config" || err "LiteLLM renderer missing first provider key reference"
+	grep -q "api_key: os.environ/KEY_GEMINI_FLASH_LITE_02" "$rendered_config" || err "LiteLLM renderer missing second provider key reference"
+	grep -q "routing_strategy: simple-shuffle" "$rendered_config" || err "LiteLLM renderer missing simple-shuffle routing"
 }
 
 validate_required_dirs() {
