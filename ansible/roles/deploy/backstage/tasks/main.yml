@@ -1,0 +1,45 @@
+---
+- name: Derive Backstage Compose CLI args
+  ansible.builtin.set_fact:
+    deploy_backstage_compose_args: >-
+      {{ '-f ' ~ (deploy_stack.compose_cli_files | join(' -f ')) }}
+
+- name: Ensure Backstage deploy directories exist
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ item.owner | default('root') }}"
+    group: "{{ item.group | default('root') }}"
+    mode: "{{ item.mode }}"
+  loop: "{{ deploy_stack.directories }}"
+
+- name: Stage Backstage runtime environment
+  ansible.builtin.copy:
+    src: "{{ deploy_stack.runtime_env_source }}"
+    dest: "{{ deploy_stack.env_path }}"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Copy Backstage Compose files
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop: "{{ deploy_stack.compose_files }}"
+
+- name: Validate rendered Backstage Compose configuration
+  ansible.builtin.command:
+    cmd: docker compose --env-file {{ deploy_stack.env_path }} {{ deploy_backstage_compose_args }} config
+  changed_when: false
+
+- name: Deploy Backstage stack
+  ansible.builtin.command:
+    cmd: docker compose --env-file {{ deploy_stack.env_path }} {{ deploy_backstage_compose_args }} up -d
+  register: deploy_backstage_up
+  changed_when: >-
+    'Started' in deploy_backstage_up.stdout or
+    'Recreated' in deploy_backstage_up.stdout or
+    'Creating' in deploy_backstage_up.stdout

@@ -141,7 +141,7 @@ validate_required_dirs() {
 		"$ROOT_DIR/compose/.tmp/observability/loki"
 		"$ROOT_DIR/compose/.tmp/observability/prometheus"
 		"$ROOT_DIR/compose/.tmp/llm/postgres/data"
-		"$ROOT_DIR/compose/.tmp/wiki/postgres"
+		"$ROOT_DIR/compose/.tmp/backstage/postgres"
 	)
 
 	for dir in "${dirs[@]}"; do
@@ -156,7 +156,7 @@ require_cmd timeout
 validate_stack core
 validate_stack observability
 validate_stack llm
-validate_stack wiki
+validate_stack backstage
 validate_required_dirs
 validate_seaweed_s3_config
 validate_litellm_config_renderer

@@ -1,0 +1,46 @@
+services:
+  backstage:
+    image: ${BACKSTAGE_IMAGE:-ghcr.io/victus-fit/victus-backstage:main}
+    container_name: backstage
+    restart: unless-stopped
+    environment:
+      APP_BASE_URL: ${APP_BASE_URL:-https://wiki.victus.fit}
+      BACKEND_BASE_URL: ${BACKEND_BASE_URL:-https://wiki.victus.fit}
+      POSTGRES_HOST: backstage-database
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${BACKSTAGE_POSTGRES_USER:-backstage}
+      POSTGRES_PASSWORD: ${BACKSTAGE_POSTGRES_PASSWORD}
+      AWS_ACCESS_KEY_ID: ${TECHDOCS_S3_ACCESS_KEY}
+      AWS_SECRET_ACCESS_KEY: ${TECHDOCS_S3_SECRET_KEY}
+      AWS_REGION: ${TECHDOCS_S3_REGION:-us-east-1}
+      TECHDOCS_S3_ENDPOINT: http://seaweedfs:8333
+    depends_on:
+      backstage-database:
+        condition: service_healthy
+    networks:
+      - backstage_backend
+      - shared_backend
+
+  backstage-database:
+    image: postgres:17-alpine
+    container_name: backstage-database
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${BACKSTAGE_POSTGRES_DB:-backstage}
+      POSTGRES_USER: ${BACKSTAGE_POSTGRES_USER:-backstage}
+      POSTGRES_PASSWORD: ${BACKSTAGE_POSTGRES_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - backstage_backend
+
+networks:
+  backstage_backend:
+    driver: bridge
+  shared_backend:
+    name: infra_shared_backend
+    external: true

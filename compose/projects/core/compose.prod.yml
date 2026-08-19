@@ -21,6 +21,8 @@ services:
       - /srv/logs/nginx-public:/var/log/nginx
 
   seaweedfs:
+    ports:
+      - "${SEAWEED_S3_BIND_IP:-127.0.0.1}:${SEAWEED_S3_PORT:-8333}:8333"
     volumes:
       - /srv/data/seaweed/data:/data
       - /srv/secrets/runtime/seaweed-s3.json:/run/secrets/seaweed-s3.json:ro

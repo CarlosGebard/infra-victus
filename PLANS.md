@@ -1,36 +1,42 @@
-# Plans
+# Backstage and external TechDocs migration
 
-## Wiki.js Public Stack Integration
+## Goal
 
-Goal: integrate Wiki.js into the repository-owned infra runtime and publish it
-through the existing public NGINX edge.
+Replace Wiki.js at `wiki.victus.fit` with Backstage and externally generated
+TechDocs stored in the existing S3-compatible SeaweedFS service.
 
-Scope:
-- `compose/projects/wiki/`
-- `compose/env/wiki.env.example`
-- Ansible deploy inventory, playbook, and role for the `wiki` stack
-- public vhost routing in production networking vars
-- local validation and minimal docs
+## Scope
 
-Assumptions:
-- `nginx-public` is the public edge and should proxy to Wiki.js.
-- Wiki.js should run as its own deployable stack.
-- Production secrets are staged outside git through `WIKI_RUNTIME_ENV_SOURCE_FILE`.
-- The existing production database can be preserved with
-  `WIKIJS_DB_DATA_LOCATION=/srv/data/media/wiki/postgres`.
+- Backstage Compose, Ansible deployment, public edge route, database, and runtime secrets.
+- Dedicated `victus-techdocs` bucket and TechDocs S3 configuration.
+- Central reusable workflow and organization-scoped OIDC identity for TechDocs publication.
+- Removal of Wiki.js definitions and an explicit post-validation cleanup command for its database.
 
-Steps:
-1. Add Wiki.js Compose files using repository stack layout.
-2. Connect Wiki.js to `infra_shared_backend` for public edge routing.
-3. Add Ansible deployment support for the `wiki` stack.
-4. Add a public Wiki.js vhost in production networking vars.
-5. Extend validation and documentation.
+## Assumptions
 
-Validation:
+- `wiki.victus.fit` remains the public hostname and DNS already targets this VPS.
+- Backstage is built and published as `ghcr.io/victus-fit/victus-backstage` before deployment.
+- A self-hosted GitHub Actions runner is registered on the VPS with the `victus-techdocs` label.
+- Wiki.js data is deleted only after Backstage and TechDocs verification succeeds.
+
+## Steps
+
+1. Add the Backstage runtime and dedicated SeaweedFS bucket.
+2. Replace Wiki.js deployment, routing, validation, and secret references with Backstage.
+3. Configure Backstage as an external TechDocs reader and centralize publishing CI in
+   `victus-infra`, invoked by `victus-agent` without repository publication secrets.
+4. Add an ADR and an operator runbook, including the irreversible Wiki.js database cleanup.
+5. Validate Compose, Ansible syntax, Backstage configuration, and TechDocs source navigation.
+
+## Validation
+
 - `make compose-validate`
 - `make ansible-check`
+- `yarn backstage-cli config:check --config app-config.yaml --config app-config.production.yaml`
+- Confirm `https://wiki.victus.fit` serves Backstage and the `victus-agent` TechDocs page.
 
-Risks:
-- Public DNS must point the selected docs hostname at the VPS before TLS issue.
-- If preserving old data, the runtime env must keep the old database path until
-  a planned migration copies it.
+## Risks
+
+- The Backstage image must exist in GHCR and be readable by the VPS.
+- The self-hosted runner must reach the private SeaweedFS endpoint.
+- Removing `/srv/data/wiki/postgres` is irreversible.
