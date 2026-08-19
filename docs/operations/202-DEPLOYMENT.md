@@ -26,11 +26,11 @@ The workflow deploys stacks in order:
 
 ```text
 observability -> core -> llm
-                    \-> wiki
+                    \-> backstage
 ```
 
 The `observability` stack is deployed first so monitoring is available before
-the core stack is rolled out. The `llm` and `wiki` stacks are deployed after
+the core stack is rolled out. The `llm` and `backstage` stacks are deployed after
 core so the shared Docker network and edge routing are already present.
 
 Internal job order:
@@ -42,7 +42,7 @@ validate -> deploy -> notify
 Inside the `deploy` job, Ansible runs stack playbooks in dependency order:
 
 ```text
-preflight.yml -> deploy-observability.yml -> deploy.yml -> deploy-llm.yml -> deploy-wiki.yml -> review.yml
+preflight.yml -> deploy-observability.yml -> deploy.yml -> deploy-llm.yml -> deploy-backstage.yml -> review.yml
 ```
 
 ## Trigger
@@ -70,7 +70,7 @@ The deploy workflow reads scoped Infisical paths:
 /Hetzner-Server/global     host access and shared deploy secrets
 /Hetzner-Server/core       core stack runtime secrets
 /Hetzner-Server/llm        LiteLLM and Langfuse runtime secrets
-/Hetzner-Server/wiki       Wiki.js runtime secrets
+/Hetzner-Server/wiki       Backstage and TechDocs runtime secrets
 /Hetzner-Server/api-keys   provider API keys named KEY_*
 ```
 
@@ -121,8 +121,8 @@ prometheus
 llm-postgres
 litellm
 langfuse
-wiki
-wiki-database
+backstage
+backstage-database
 ```
 
 LLM service endpoints:
@@ -137,8 +137,8 @@ The `llm` deploy does not publish LiteLLM or Langfuse service ports directly.
 Private NGINX binds to `TAILSCALE_IPV4` and proxies to the services over
 `infra_shared_backend`.
 
-Wiki.js is published through `nginx-public` and proxies to `wiki:3000` over
-`infra_shared_backend`. The default production hostname is:
+Backstage is published through `nginx-public` and proxies to `backstage:7007`
+over `infra_shared_backend`. The public hostname is:
 
 ```text
 https://wiki.victus.fit
@@ -148,13 +148,6 @@ If `nginx-private` also binds port `80`, `sync-core-dns.sh` derives
 `NGINX_PUBLIC_BIND_IP` from the VPS public route so public and private NGINX do
 not compete for the same host socket. Override `NGINX_PUBLIC_BIND_IP` in
 `CORE_RUNTIME_ENV` only when the host has multiple public IPv4 addresses.
-
-To preserve an existing Wiki.js database from the previous media stack, set
-this in `WIKI_RUNTIME_ENV` before deploy:
-
-```text
-WIKIJS_DB_DATA_LOCATION=/srv/data/media/wiki/postgres
-```
 
 After the first Langfuse login, create a Langfuse project, generate API keys,
 update `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` in Infisical, and

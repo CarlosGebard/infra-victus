@@ -97,24 +97,25 @@ Outputs:
 - persistent runtime data
 - event and registry state used by downstream systems
 
-### Wiki Stack
+### Backstage Stack
 
-The `wiki` stack owns public Wiki.js documentation.
+The `backstage` stack owns the public developer portal and reads externally
+generated TechDocs from SeaweedFS.
 
 ```text
-compose/projects/wiki/
+compose/projects/backstage/
 ```
 
 Components:
 
 ```text
-wiki            Wiki.js application
-wiki-database   Wiki.js Postgres database
+backstage            Backstage application
+backstage-database   Backstage Postgres database
 ```
 
-The `wiki` service joins `infra_shared_backend` so `nginx-public` can proxy
-the public docs hostname to `wiki:3000`. The database remains on the internal
-`wiki_backend` network.
+The `backstage` service joins `infra_shared_backend` so `nginx-public` can
+proxy `wiki.victus.fit` to `backstage:7007`. Its database remains on the
+internal `backstage_backend` network.
 
 ### Observability Stack
 

@@ -19,7 +19,7 @@ env:
   INFISICAL_GLOBAL_SECRET_PATH: /Hetzner-Server/global
   INFISICAL_CORE_SECRET_PATH: /Hetzner-Server/core
   INFISICAL_LLM_SECRET_PATH: /Hetzner-Server/llm
-  # Kept at the existing path while Wiki.js is retired; the values are Backstage-only.
+  # Existing path retained for Backstage and TechDocs runtime values.
   INFISICAL_BACKSTAGE_SECRET_PATH: /Hetzner-Server/wiki
   INFISICAL_API_KEYS_SECRET_PATH: /Hetzner-Server/api-keys
 

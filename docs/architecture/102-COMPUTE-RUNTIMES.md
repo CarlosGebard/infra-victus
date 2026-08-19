@@ -27,7 +27,7 @@ stages configuration, and starts the Compose-defined stacks.
 core            shared runtime services
 observability   metrics, logs, and dashboards
 llm             LLM gateway, key management, tracing, and audit
-wiki            public Wiki.js documentation
+backstage       public portal and TechDocs reader
 ```
 
 ## Runtime Modes
