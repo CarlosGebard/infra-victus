@@ -165,5 +165,6 @@ deploy:
       - backstage
       - backstage-database
     directories:
+      - { path: "{{ srv_apps_root }}/backstage", mode: "0755" }
       - { path: "{{ srv_data_root }}/backstage/postgres", owner: "70", group: "70", mode: "0700" }
     runtime_env_source: "{{ lookup('ansible.builtin.env', 'BACKSTAGE_RUNTIME_ENV_SOURCE_FILE') }}"
