@@ -12,12 +12,6 @@ permissions:
   contents: read
   id-token: write
 
-env:
-  INFISICAL_TECHDOCS_SECRET_PATH: /Hetzner-Server/wiki
-  TECHDOCS_S3_ENDPOINT: http://127.0.0.1:8333
-  TECHDOCS_S3_REGION: us-east-1
-  TECHDOCS_S3_BUCKET: victus-techdocs
-
 jobs:
   publish:
     name: Generate and publish
@@ -45,13 +39,13 @@ jobs:
           identity-id: ${{ vars.INFISICAL_TECHDOCS_PUBLISHER_ID }}
           project-slug: ${{ vars.INFISICAL_PROJECT_SLUG }}
           env-slug: ${{ vars.INFISICAL_ENV_SLUG }}
-          secret-path: ${{ env.INFISICAL_TECHDOCS_SECRET_PATH }}
+          secret-path: /Hetzner-Server/wiki
 
       - name: Generate and publish TechDocs
         env:
           AWS_ACCESS_KEY_ID: ${{ env.TECHDOCS_S3_ACCESS_KEY }}
           AWS_SECRET_ACCESS_KEY: ${{ env.TECHDOCS_S3_SECRET_KEY }}
-          AWS_REGION: ${{ env.TECHDOCS_S3_REGION }}
+          AWS_REGION: us-east-1
         run: |
           set -euo pipefail
           npm install --global @techdocs/cli
@@ -59,8 +53,8 @@ jobs:
           techdocs-cli generate --no-docker --output-dir ./site
           techdocs-cli publish \
             --publisher-type awsS3 \
-            --storage-name "${TECHDOCS_S3_BUCKET}" \
+            --storage-name victus-techdocs \
             --directory ./site \
             --entity "${{ inputs.entity }}" \
-            --awsEndpoint "${TECHDOCS_S3_ENDPOINT}" \
+            --awsEndpoint http://127.0.0.1:8333 \
             --awsS3ForcePathStyle

@@ -28,6 +28,11 @@ The identity must read `/Hetzner-Server/wiki`, which contains `TECHDOCS_S3_ACCES
 
 Trigger the caller workflow, confirm the `Generate and publish TechDocs` step succeeds, then open the entity's Docs tab in Backstage.
 
+Backstage reaches the same bucket through `http://seaweedfs:8333` on the
+`core_core_backend` Docker network. If its Docs page cannot load an otherwise
+published site, verify that the `backstage` container is attached to that
+network and can resolve `seaweedfs`.
+
 ## Recovery
 
 If publishing cannot reach S3, verify `seaweedfs` exposes port `8333` only on loopback and that the runner is on the same VPS. Re-run the caller workflow after restoring the service.

@@ -20,6 +20,7 @@ services:
     networks:
       - backstage_backend
       - shared_backend
+      - core_backend
 
   backstage-database:
     image: postgres:17-alpine
@@ -43,4 +44,7 @@ networks:
     driver: bridge
   shared_backend:
     name: infra_shared_backend
+    external: true
+  core_backend:
+    name: core_core_backend
     external: true
