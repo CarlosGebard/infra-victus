@@ -68,7 +68,7 @@ jobs:
         uses: Infisical/secrets-action@v1.0.10
         with:
           method: "oidc"
-          identity-id: "${{ vars.INFISICAL_IDENTITY_ID }}"
+          identity-id: "${{ vars.INFISICAL_DEPLOY_ID }}"
           project-slug: "${{ vars.INFISICAL_PROJECT_SLUG }}"
           env-slug: "${{ vars.INFISICAL_ENV_SLUG }}"
           secret-path: "${{ env.INFISICAL_GLOBAL_SECRET_PATH }}"
@@ -77,7 +77,7 @@ jobs:
         uses: Infisical/secrets-action@v1.0.10
         with:
           method: "oidc"
-          identity-id: "${{ vars.INFISICAL_IDENTITY_ID }}"
+          identity-id: "${{ vars.INFISICAL_DEPLOY_ID }}"
           project-slug: "${{ vars.INFISICAL_PROJECT_SLUG }}"
           env-slug: "${{ vars.INFISICAL_ENV_SLUG }}"
           secret-path: "${{ env.INFISICAL_CORE_SECRET_PATH }}"
@@ -86,7 +86,7 @@ jobs:
         uses: Infisical/secrets-action@v1.0.10
         with:
           method: "oidc"
-          identity-id: "${{ vars.INFISICAL_IDENTITY_ID }}"
+          identity-id: "${{ vars.INFISICAL_DEPLOY_ID }}"
           project-slug: "${{ vars.INFISICAL_PROJECT_SLUG }}"
           env-slug: "${{ vars.INFISICAL_ENV_SLUG }}"
           secret-path: "${{ env.INFISICAL_LLM_SECRET_PATH }}"
@@ -95,7 +95,7 @@ jobs:
         uses: Infisical/secrets-action@v1.0.10
         with:
           method: "oidc"
-          identity-id: "${{ vars.INFISICAL_IDENTITY_ID }}"
+          identity-id: "${{ vars.INFISICAL_DEPLOY_ID }}"
           project-slug: "${{ vars.INFISICAL_PROJECT_SLUG }}"
           env-slug: "${{ vars.INFISICAL_ENV_SLUG }}"
           secret-path: "${{ env.INFISICAL_BACKSTAGE_SECRET_PATH }}"
@@ -104,7 +104,7 @@ jobs:
         uses: Infisical/secrets-action@v1.0.10
         with:
           method: "oidc"
-          identity-id: "${{ vars.INFISICAL_IDENTITY_ID }}"
+          identity-id: "${{ vars.INFISICAL_DEPLOY_ID }}"
           project-slug: "${{ vars.INFISICAL_PROJECT_SLUG }}"
           env-slug: "${{ vars.INFISICAL_ENV_SLUG }}"
           secret-path: "${{ env.INFISICAL_API_KEYS_SECRET_PATH }}"
@@ -209,7 +209,7 @@ jobs:
         uses: Infisical/secrets-action@v1.0.10
         with:
           method: "oidc"
-          identity-id: "${{ vars.INFISICAL_IDENTITY_ID }}"
+          identity-id: "${{ vars.INFISICAL_DEPLOY_ID }}"
           project-slug: "${{ vars.INFISICAL_PROJECT_SLUG }}"
           env-slug: "${{ vars.INFISICAL_ENV_SLUG }}"
           secret-path: "${{ env.INFISICAL_GLOBAL_SECRET_PATH }}"
@@ -218,7 +218,7 @@ jobs:
         uses: Infisical/secrets-action@v1.0.10
         with:
           method: "oidc"
-          identity-id: "${{ vars.INFISICAL_IDENTITY_ID }}"
+          identity-id: "${{ vars.INFISICAL_DEPLOY_ID }}"
           project-slug: "${{ vars.INFISICAL_PROJECT_SLUG }}"
           env-slug: "${{ vars.INFISICAL_ENV_SLUG }}"
           secret-path: "${{ env.INFISICAL_CORE_SECRET_PATH }}"
@@ -227,7 +227,7 @@ jobs:
         uses: Infisical/secrets-action@v1.0.10
         with:
           method: "oidc"
-          identity-id: "${{ vars.INFISICAL_IDENTITY_ID }}"
+          identity-id: "${{ vars.INFISICAL_DEPLOY_ID }}"
           project-slug: "${{ vars.INFISICAL_PROJECT_SLUG }}"
           env-slug: "${{ vars.INFISICAL_ENV_SLUG }}"
           secret-path: "${{ env.INFISICAL_LLM_SECRET_PATH }}"
@@ -236,7 +236,7 @@ jobs:
         uses: Infisical/secrets-action@v1.0.10
         with:
           method: "oidc"
-          identity-id: "${{ vars.INFISICAL_IDENTITY_ID }}"
+          identity-id: "${{ vars.INFISICAL_DEPLOY_ID }}"
           project-slug: "${{ vars.INFISICAL_PROJECT_SLUG }}"
           env-slug: "${{ vars.INFISICAL_ENV_SLUG }}"
           secret-path: "${{ env.INFISICAL_BACKSTAGE_SECRET_PATH }}"
@@ -245,7 +245,7 @@ jobs:
         uses: Infisical/secrets-action@v1.0.10
         with:
           method: "oidc"
-          identity-id: "${{ vars.INFISICAL_IDENTITY_ID }}"
+          identity-id: "${{ vars.INFISICAL_DEPLOY_ID }}"
           project-slug: "${{ vars.INFISICAL_PROJECT_SLUG }}"
           env-slug: "${{ vars.INFISICAL_ENV_SLUG }}"
           secret-path: "${{ env.INFISICAL_API_KEYS_SECRET_PATH }}"
