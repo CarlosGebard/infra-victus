@@ -105,7 +105,7 @@ copies and starts them; it should not redefine the stack.
 
 `stack`
 : A deployable service group with a clear domain boundary. Current stacks are
-`core`, `observability`, `llm`, and `backstage`.
+`core`, `observability`, `llm`, and `wiki`.
 
 `core`
 : Shared infrastructure required by Victus consumers, including private edge
@@ -118,9 +118,9 @@ DNS.
 `llm`
 : LiteLLM gateway, dynamic provider key management, and Langfuse LLM tracing.
 
-`backstage`
-: Public Backstage portal served through the public NGINX edge. It reads
-externally generated TechDocs from SeaweedFS.
+`wiki`
+: Public Wiki.js instance served through the public NGINX edge. Its PostgreSQL
+database is the documentation source of truth.
 
 `private DNS`
 : Internal service naming under the `victus.io` zone, backed by CoreDNS.

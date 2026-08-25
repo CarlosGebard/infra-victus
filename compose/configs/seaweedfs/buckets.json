@@ -26,10 +26,6 @@
     {
       "name": "victus-tmp",
       "prefixes": []
-    },
-    {
-      "name": "victus-techdocs",
-      "prefixes": []
     }
   ]
 }

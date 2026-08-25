@@ -58,11 +58,6 @@ listed; only move them into the scoped folders.
   LANGFUSE_PUBLIC_KEY
   LANGFUSE_SECRET_KEY
 
-/Hetzner-Server/wiki
-  BACKSTAGE_POSTGRES_PASSWORD
-  TECHDOCS_S3_ACCESS_KEY
-  TECHDOCS_S3_SECRET_KEY
-
 /Hetzner-Server/api-keys
   KEY_*
 ```
@@ -94,9 +89,6 @@ LANGFUSE_SALT
 LANGFUSE_ENCRYPTION_KEY
 LANGFUSE_PUBLIC_KEY
 LANGFUSE_SECRET_KEY
-BACKSTAGE_POSTGRES_PASSWORD
-TECHDOCS_S3_ACCESS_KEY
-TECHDOCS_S3_SECRET_KEY
 ```
 
 LiteLLM provider keys must be stored in Infisical with the `KEY_` prefix:
@@ -129,6 +121,9 @@ Production runtime secret files live under:
 /srv/secrets/runtime/llm.env
 /srv/secrets/runtime/wiki.env
 ```
+
+`wiki.env` is retained on the production host because it is the credential for
+the existing Wiki.js database. CI does not read or replace it.
 
 The production LiteLLM config is generated at deploy time:
 

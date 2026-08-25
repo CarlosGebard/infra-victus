@@ -7,5 +7,5 @@ nav:
   - Architecture: 100-ARCHITECTURE.md
   - Operations: 200-OPERATIONS.md
   - Contracts: 300-CONTRACTS.md
-  - TechDocs publication: runbooks/techdocs-publication.md
-  - Decision: adr/001-central-techdocs-publication.md
+  - Wiki.js operation: runbooks/wikijs-operation.md
+  - Decision: adr/003-wikijs-central-documentation.md

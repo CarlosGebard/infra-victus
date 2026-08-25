@@ -149,22 +149,21 @@ deploy:
         dest: "{{ srv_apps_root }}/llm/llm-postgres/init/01-create-llm-databases.sh"
         mode: "0755"
 
-  backstage:
-    name: backstage
-    project_dir: "{{ srv_apps_root }}/backstage"
+  wiki:
+    name: wiki
+    project_dir: "{{ srv_apps_root }}/wiki"
     compose_files:
-      - src: "{{ playbook_dir }}/../../compose/projects/backstage/compose.yml"
-        dest: "{{ srv_apps_root }}/backstage/compose.yml"
-      - src: "{{ playbook_dir }}/../../compose/projects/backstage/compose.prod.yml"
-        dest: "{{ srv_apps_root }}/backstage/compose.prod.yml"
+      - src: "{{ playbook_dir }}/../../compose/projects/wiki/compose.yml"
+        dest: "{{ srv_apps_root }}/wiki/compose.yml"
+      - src: "{{ playbook_dir }}/../../compose/projects/wiki/compose.prod.yml"
+        dest: "{{ srv_apps_root }}/wiki/compose.prod.yml"
     compose_cli_files:
-      - "{{ srv_apps_root }}/backstage/compose.yml"
-      - "{{ srv_apps_root }}/backstage/compose.prod.yml"
-    env_path: "{{ srv_secrets_root }}/runtime/backstage.env"
+      - "{{ srv_apps_root }}/wiki/compose.yml"
+      - "{{ srv_apps_root }}/wiki/compose.prod.yml"
+    env_path: "{{ srv_secrets_root }}/runtime/wiki.env"
     compose_services:
-      - backstage
-      - backstage-database
+      - wiki
+      - wiki-database
     directories:
-      - { path: "{{ srv_apps_root }}/backstage", mode: "0755" }
-      - { path: "{{ srv_data_root }}/backstage/postgres", owner: "70", group: "70", mode: "0700" }
-    runtime_env_source: "{{ lookup('ansible.builtin.env', 'BACKSTAGE_RUNTIME_ENV_SOURCE_FILE') }}"
+      - { path: "{{ srv_apps_root }}/wiki", mode: "0755" }
+      - { path: "{{ srv_data_root }}/wiki/postgres", owner: "70", group: "70", mode: "0700" }

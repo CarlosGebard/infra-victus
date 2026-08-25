@@ -1,0 +1,75 @@
+---
+- name: Derive Wiki.js compose CLI args
+  ansible.builtin.set_fact:
+    deploy_wiki_compose_args: >-
+      {{ '-f ' ~ (deploy_stack.compose_cli_files | join(' -f ')) }}
+
+- name: Ensure Wiki.js deploy directories exist
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ item.owner | default('root') }}"
+    group: "{{ item.group | default('root') }}"
+    mode: "{{ item.mode }}"
+  loop: "{{ deploy_stack.directories }}"
+
+- name: Check Wiki.js runtime environment exists
+  ansible.builtin.stat:
+    path: "{{ deploy_stack.env_path }}"
+  register: deploy_wiki_runtime_env
+
+- name: Stop Wiki.js deploy when its runtime environment is missing
+  ansible.builtin.assert:
+    that:
+      - deploy_wiki_runtime_env.stat.exists
+      - deploy_wiki_runtime_env.stat.isreg
+    fail_msg: >-
+      Missing Wiki.js runtime env at {{ deploy_stack.env_path }}. Restore the
+      existing production file before deploying so the database is not replaced.
+
+- name: Read Wiki.js runtime environment
+  ansible.builtin.slurp:
+    path: "{{ deploy_stack.env_path }}"
+  register: deploy_wiki_runtime_env_raw
+
+- name: Validate Wiki.js database password is configured
+  ansible.builtin.assert:
+    that:
+      - deploy_wiki_db_password is not none
+      - deploy_wiki_db_password | length >= 16
+      - deploy_wiki_db_password != 'change-me'
+    fail_msg: >-
+      {{ deploy_stack.env_path }} must define a non-default WIKIJS_DB_PASSWORD
+      with at least 16 characters.
+  vars:
+    deploy_wiki_runtime_env_text: "{{ deploy_wiki_runtime_env_raw.content | b64decode }}"
+    deploy_wiki_db_password: "{{ deploy_wiki_runtime_env_text | regex_findall('(?m)^WIKIJS_DB_PASSWORD=(.+)$') | first | default(none) }}"
+
+- name: Copy Wiki.js stack compose files
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop: "{{ deploy_stack.compose_files }}"
+
+- name: Link active environment file into the Wiki.js stack directory
+  ansible.builtin.file:
+    src: "{{ deploy_stack.env_path }}"
+    dest: "{{ deploy_stack.project_dir }}/.env"
+    state: link
+
+- name: Validate rendered Wiki.js Compose configuration
+  ansible.builtin.command:
+    cmd: docker compose --env-file {{ deploy_stack.env_path }} {{ deploy_wiki_compose_args }} config
+  changed_when: false
+
+- name: Deploy Wiki.js stack
+  ansible.builtin.command:
+    cmd: docker compose --env-file {{ deploy_stack.env_path }} {{ deploy_wiki_compose_args }} up -d
+  register: deploy_wiki_up
+  changed_when: >-
+    'Started' in deploy_wiki_up.stdout or
+    'Recreated' in deploy_wiki_up.stdout or
+    'Creating' in deploy_wiki_up.stdout

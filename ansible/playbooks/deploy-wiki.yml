@@ -1,5 +1,5 @@
 ---
-- name: Deploy Backstage stack
+- name: Deploy Wiki.js stack
   hosts: all
   become: true
   gather_facts: true
@@ -12,7 +12,7 @@
           - yml
 
   vars:
-    deploy_stack: "{{ deploy.backstage }}"
+    deploy_stack: "{{ deploy.wiki }}"
 
   roles:
-    - role: deploy/backstage
+    - role: deploy/wiki

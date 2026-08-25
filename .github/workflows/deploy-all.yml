@@ -19,8 +19,6 @@ env:
   INFISICAL_GLOBAL_SECRET_PATH: /Hetzner-Server/global
   INFISICAL_CORE_SECRET_PATH: /Hetzner-Server/core
   INFISICAL_LLM_SECRET_PATH: /Hetzner-Server/llm
-  # Existing path retained for Backstage and TechDocs runtime values.
-  INFISICAL_BACKSTAGE_SECRET_PATH: /Hetzner-Server/wiki
   INFISICAL_API_KEYS_SECRET_PATH: /Hetzner-Server/api-keys
 
 jobs:
@@ -54,7 +52,7 @@ jobs:
           bash tests/ansible/deploy-syntax-check.sh
           bash tests/ansible/deploy-observability-syntax-check.sh
           bash tests/ansible/deploy-llm-syntax-check.sh
-          bash tests/ansible/deploy-backstage-syntax-check.sh
+          bash tests/ansible/deploy-wiki-syntax-check.sh
           bash tests/ansible/preflight-syntax-check.sh
           bash tests/ansible/review-syntax-check.sh
 
@@ -101,15 +99,6 @@ jobs:
           env-slug: "${{ vars.INFISICAL_ENV_SLUG }}"
           secret-path: "${{ env.INFISICAL_LLM_SECRET_PATH }}"
 
-      - name: Pull Backstage secrets from Infisical
-        uses: Infisical/secrets-action@v1.0.10
-        with:
-          method: "oidc"
-          identity-id: "${{ vars.INFISICAL_DEPLOY_ID }}"
-          project-slug: "${{ vars.INFISICAL_PROJECT_SLUG }}"
-          env-slug: "${{ vars.INFISICAL_ENV_SLUG }}"
-          secret-path: "${{ env.INFISICAL_BACKSTAGE_SECRET_PATH }}"
-
       - name: Pull API keys from Infisical
         uses: Infisical/secrets-action@v1.0.10
         with:
@@ -140,9 +129,6 @@ jobs:
           LANGFUSE_ENCRYPTION_KEY: ${{ env.LANGFUSE_ENCRYPTION_KEY }}
           LANGFUSE_PUBLIC_KEY: ${{ env.LANGFUSE_PUBLIC_KEY }}
           LANGFUSE_SECRET_KEY: ${{ env.LANGFUSE_SECRET_KEY }}
-          BACKSTAGE_POSTGRES_PASSWORD: ${{ env.BACKSTAGE_POSTGRES_PASSWORD }}
-          TECHDOCS_S3_ACCESS_KEY: ${{ env.TECHDOCS_S3_ACCESS_KEY }}
-          TECHDOCS_S3_SECRET_KEY: ${{ env.TECHDOCS_S3_SECRET_KEY }}
         run: |
           set -euo pipefail
           
@@ -185,13 +171,6 @@ jobs:
           [[ -n "${LANGFUSE_PUBLIC_KEY}" ]] || errors+=("Missing LANGFUSE_PUBLIC_KEY")
           [[ -n "${LANGFUSE_SECRET_KEY}" ]] || errors+=("Missing LANGFUSE_SECRET_KEY")
 
-          # Backstage and TechDocs secrets
-          [[ -n "${BACKSTAGE_POSTGRES_PASSWORD}" ]] || errors+=("Missing BACKSTAGE_POSTGRES_PASSWORD")
-          [[ "${#BACKSTAGE_POSTGRES_PASSWORD}" -ge 16 ]] || errors+=("BACKSTAGE_POSTGRES_PASSWORD must be at least 16 characters")
-          [[ "${BACKSTAGE_POSTGRES_PASSWORD}" != "change-me" ]] || errors+=("BACKSTAGE_POSTGRES_PASSWORD must not use local default")
-          [[ -n "${TECHDOCS_S3_ACCESS_KEY}" ]] || errors+=("Missing TECHDOCS_S3_ACCESS_KEY")
-          [[ -n "${TECHDOCS_S3_SECRET_KEY}" ]] || errors+=("Missing TECHDOCS_S3_SECRET_KEY")
-          
           if [[ ${#errors[@]} -gt 0 ]]; then
             printf '%s\n' "${errors[@]}" >&2
             exit 1
@@ -241,15 +220,6 @@ jobs:
           project-slug: "${{ vars.INFISICAL_PROJECT_SLUG }}"
           env-slug: "${{ vars.INFISICAL_ENV_SLUG }}"
           secret-path: "${{ env.INFISICAL_LLM_SECRET_PATH }}"
-
-      - name: Pull Backstage secrets from Infisical
-        uses: Infisical/secrets-action@v1.0.10
-        with:
-          method: "oidc"
-          identity-id: "${{ vars.INFISICAL_DEPLOY_ID }}"
-          project-slug: "${{ vars.INFISICAL_PROJECT_SLUG }}"
-          env-slug: "${{ vars.INFISICAL_ENV_SLUG }}"
-          secret-path: "${{ env.INFISICAL_BACKSTAGE_SECRET_PATH }}"
 
       - name: Pull API keys from Infisical
         uses: Infisical/secrets-action@v1.0.10
@@ -304,10 +274,6 @@ jobs:
           LANGFUSE_ENCRYPTION_KEY: ${{ env.LANGFUSE_ENCRYPTION_KEY }}
           LANGFUSE_PUBLIC_KEY: ${{ env.LANGFUSE_PUBLIC_KEY }}
           LANGFUSE_SECRET_KEY: ${{ env.LANGFUSE_SECRET_KEY }}
-          BACKSTAGE_RUNTIME_ENV: ${{ vars.BACKSTAGE_RUNTIME_ENV }}
-          BACKSTAGE_POSTGRES_PASSWORD: ${{ env.BACKSTAGE_POSTGRES_PASSWORD }}
-          TECHDOCS_S3_ACCESS_KEY: ${{ env.TECHDOCS_S3_ACCESS_KEY }}
-          TECHDOCS_S3_SECRET_KEY: ${{ env.TECHDOCS_S3_SECRET_KEY }}
         run: |
           set -euo pipefail
 
@@ -351,20 +317,6 @@ jobs:
             '        "Write",' \
             '        "List"' \
             '      ]' \
-            '    },' \
-            '    {' \
-            '      "name": "backstage-techdocs",' \
-            '      "credentials": [' \
-            '        {' \
-            "          \"accessKey\": \"${TECHDOCS_S3_ACCESS_KEY}\"," \
-            "          \"secretKey\": \"${TECHDOCS_S3_SECRET_KEY}\"" \
-            '        }' \
-            '      ],' \
-            '      "actions": [' \
-            '        "Read",' \
-            '        "Write",' \
-            '        "List"' \
-            '      ]' \
             '    }' \
             '  ]' \
             '}' \
@@ -405,27 +357,6 @@ jobs:
           done
           chmod 600 /tmp/llm-runtime.env
 
-          if [[ -n "${BACKSTAGE_RUNTIME_ENV:-}" ]]; then
-            printf '%s\n' "$BACKSTAGE_RUNTIME_ENV" > /tmp/backstage-runtime.env
-          else
-            printf '%s\n' \
-              'BACKSTAGE_IMAGE=ghcr.io/victus-fit/victus-backstage:main' \
-              'APP_BASE_URL=https://wiki.victus.fit' \
-              'BACKEND_BASE_URL=https://wiki.victus.fit' \
-              'BACKSTAGE_POSTGRES_USER=backstage' \
-              'BACKSTAGE_POSTGRES_DB=backstage' \
-              'BACKSTAGE_POSTGRES_DATA_LOCATION=/srv/data/backstage/postgres' \
-              'TECHDOCS_S3_REGION=us-east-1' \
-              > /tmp/backstage-runtime.env
-          fi
-
-          grep -Ev '^(BACKSTAGE_POSTGRES_PASSWORD|TECHDOCS_S3_ACCESS_KEY|TECHDOCS_S3_SECRET_KEY)=' /tmp/backstage-runtime.env > /tmp/backstage-runtime.env.next || true
-          printf 'BACKSTAGE_POSTGRES_PASSWORD=%s\n' "${BACKSTAGE_POSTGRES_PASSWORD}" >> /tmp/backstage-runtime.env.next
-          printf 'TECHDOCS_S3_ACCESS_KEY=%s\n' "${TECHDOCS_S3_ACCESS_KEY}" >> /tmp/backstage-runtime.env.next
-          printf 'TECHDOCS_S3_SECRET_KEY=%s\n' "${TECHDOCS_S3_SECRET_KEY}" >> /tmp/backstage-runtime.env.next
-          mv /tmp/backstage-runtime.env.next /tmp/backstage-runtime.env
-          chmod 600 /tmp/backstage-runtime.env
-
       - name: Validate materialized runtime files
         run: |
           set -euo pipefail
@@ -434,7 +365,6 @@ jobs:
           [[ -f /tmp/core-runtime.env ]] || { echo "✗ Missing /tmp/core-runtime.env"; exit 1; }
           [[ -f /tmp/seaweed-s3.json ]] || { echo "✗ Missing /tmp/seaweed-s3.json"; exit 1; }
           [[ -f /tmp/llm-runtime.env ]] || { echo "✗ Missing /tmp/llm-runtime.env"; exit 1; }
-          [[ -f /tmp/backstage-runtime.env ]] || { echo "✗ Missing /tmp/backstage-runtime.env"; exit 1; }
 
           nginx_http_port="$(grep '^NGINX_HTTP_PORT=' /tmp/core-runtime.env | cut -d= -f2- || true)"
           [[ "${nginx_http_port}" == "80" ]] || { echo "✗ NGINX_HTTP_PORT must be 80"; exit 1; }
@@ -446,7 +376,6 @@ jobs:
           CORE_RUNTIME_ENV_SOURCE_FILE: /tmp/core-runtime.env
           CORE_RUNTIME_SEAWEED_S3_SOURCE_FILE: /tmp/seaweed-s3.json
           LLM_RUNTIME_ENV_SOURCE_FILE: /tmp/llm-runtime.env
-          BACKSTAGE_RUNTIME_ENV_SOURCE_FILE: /tmp/backstage-runtime.env
         run: |
           set -euo pipefail
 
@@ -454,7 +383,7 @@ jobs:
           ansible-playbook -i /tmp/deploy-hosts.yml playbooks/deploy-observability.yml
           ansible-playbook -i /tmp/deploy-hosts.yml playbooks/deploy.yml
           ansible-playbook -i /tmp/deploy-hosts.yml playbooks/deploy-llm.yml
-          ansible-playbook -i /tmp/deploy-hosts.yml playbooks/deploy-backstage.yml
+          ansible-playbook -i /tmp/deploy-hosts.yml playbooks/deploy-wiki.yml
           ansible-playbook -i /tmp/deploy-hosts.yml playbooks/review.yml
 
   notify-success:
@@ -473,7 +402,7 @@ jobs:
           - observability (Loki, Prometheus)
           - core (nginx-private, nginx-public, SeaweedFS)
           - llm (LiteLLM, Langfuse)
-          - backstage (Backstage and TechDocs)
+          - wiki (Wiki.js and PostgreSQL)
           
           Next steps:
           1. Verify services at their configured ports

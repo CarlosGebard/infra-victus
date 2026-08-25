@@ -79,10 +79,10 @@ networking:
       https:
         enabled: false
 
-    - name: backstage
+    - name: wiki
       domains:
         - wiki.victus.fit
-      upstream: backstage:7007
+      upstream: wiki:3000
       exposure: public
       access_policy: public
       preserve_host: true

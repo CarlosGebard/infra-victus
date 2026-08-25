@@ -10,7 +10,7 @@ Este repo no contiene la app. Provee la base compartida usada por otros reposito
 - DNS privado con CoreDNS
 - edge privado y publico con NGINX
 - observabilidad con Prometheus y Loki
-- Backstage y TechDocs generado externamente
+- Wiki.js para documentación central administrada desde el navegador
 - deploy con Ansible y GitHub Actions
 
 [Read in English](../README.md)
@@ -31,7 +31,7 @@ Stacks:
 core            nginx, seaweedfs, pipeline-postgres, redis, etcd, coredns
 observability   prometheus, loki
 llm             LiteLLM, Langfuse, Postgres
-backstage       Backstage, Postgres, TechDocs externo
+wiki            Wiki.js, Postgres, documentación administrada desde el navegador
 ```
 
 ## Uso Local

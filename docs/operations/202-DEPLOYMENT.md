@@ -26,11 +26,11 @@ The workflow deploys stacks in order:
 
 ```text
 observability -> core -> llm
-                    \-> backstage
+                    \-> wiki
 ```
 
 The `observability` stack is deployed first so monitoring is available before
-the core stack is rolled out. The `llm` and `backstage` stacks are deployed after
+the core stack is rolled out. The `llm` and `wiki` stacks are deployed after
 core so the shared Docker network and edge routing are already present.
 
 Internal job order:
@@ -42,7 +42,7 @@ validate -> deploy -> notify
 Inside the `deploy` job, Ansible runs stack playbooks in dependency order:
 
 ```text
-preflight.yml -> deploy-observability.yml -> deploy.yml -> deploy-llm.yml -> deploy-backstage.yml -> review.yml
+preflight.yml -> deploy-observability.yml -> deploy.yml -> deploy-llm.yml -> deploy-wiki.yml -> review.yml
 ```
 
 ## Trigger
@@ -70,7 +70,6 @@ The deploy workflow reads scoped Infisical paths:
 /Hetzner-Server/global     host access and shared deploy secrets
 /Hetzner-Server/core       core stack runtime secrets
 /Hetzner-Server/llm        LiteLLM and Langfuse runtime secrets
-/Hetzner-Server/wiki       Backstage and TechDocs runtime secrets
 /Hetzner-Server/api-keys   provider API keys named KEY_*
 ```
 
@@ -121,8 +120,8 @@ prometheus
 llm-postgres
 litellm
 langfuse
-backstage
-backstage-database
+wiki
+wiki-database
 ```
 
 LLM service endpoints:
@@ -137,12 +136,16 @@ The `llm` deploy does not publish LiteLLM or Langfuse service ports directly.
 Private NGINX binds to `TAILSCALE_IPV4` and proxies to the services over
 `infra_shared_backend`.
 
-Backstage is published through `nginx-public` and proxies to `backstage:7007`
-over `infra_shared_backend`. The public hostname is:
+Wiki.js is published through `nginx-public` and proxies to `wiki:3000` over
+`infra_shared_backend`. The public hostname is:
 
 ```text
 https://wiki.victus.fit
 ```
+
+Wiki.js reuses `/srv/secrets/runtime/wiki.env` and
+`/srv/data/wiki/postgres`; those values are intentionally not materialized from
+CI. Verify the file exists before its first deployment.
 
 If `nginx-private` also binds port `80`, `sync-core-dns.sh` derives
 `NGINX_PUBLIC_BIND_IP` from the VPS public route so public and private NGINX do

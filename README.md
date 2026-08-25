@@ -10,7 +10,7 @@ This repository does not contain the application. It provides the shared runtime
 - private DNS with CoreDNS
 - private and public edge routing with NGINX
 - observability with Grafana, Prometheus, and Loki
-- Backstage and externally generated TechDocs
+- Wiki.js for central, browser-managed documentation
 - deployment with Ansible and GitHub Actions
 
 [Leer en español](docs/README.es.md)
@@ -31,7 +31,7 @@ Stacks:
 core            nginx, seaweedfs, pipeline-postgres, redis, etcd, coredns
 observability   grafana, prometheus, loki
 llm             LiteLLM, Langfuse, Postgres
-backstage       Backstage, Postgres, external TechDocs
+wiki            Wiki.js, Postgres, browser-managed documentation
 ```
 
 ## Local Use
